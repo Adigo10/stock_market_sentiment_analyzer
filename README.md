@@ -12,6 +12,8 @@ This project implements an intelligent financial news analysis system that:
 4. **Generates Reasoning**: Fine-tunes models to explain why news events affect stock prices
 5. **Delivers Insights**: Creates comprehensive reports and analysis summaries
 
+#### Note: Prioritize output to JSON format, rewrite NLTK modules as custom code
+
 ## Architecture
 
 ```
