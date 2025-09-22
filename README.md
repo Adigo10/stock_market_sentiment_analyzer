@@ -1,4 +1,4 @@
-# Stock Market Sentiment Analyzer
+# Stock Market Sentiment Analyzer - Tanmay branch
 
 ## Overview
 A tool for analyzing market sentiment from various data sources to assist with stock market insights.
