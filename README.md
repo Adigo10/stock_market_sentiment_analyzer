@@ -2,6 +2,8 @@
 
 A comprehensive NLP project for stock analysis using financial news data, web scraping, and fine-tuned reasoning models.
 
+## Notion Link: https://www.notion.so/NLP-260db05c79c58041b9b9d8552e6cbad3?source=copy_link
+
 ## Project Overview
 
 This project implements an intelligent financial news analysis system that:
