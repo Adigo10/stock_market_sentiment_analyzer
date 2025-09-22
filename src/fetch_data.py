@@ -2,6 +2,8 @@ import json
 import openai
 from datetime import datetime
 from typing import Dict, List, Any
+from dotenv import load_dotenv
+load_dotenv(dotenv_path='.env')
 
 class CompanyDataFetcher:
     def __init__(self, api_key: str):
