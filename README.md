@@ -1,89 +1,99 @@
-# AI6127-DNN: Financial News Analysis with Deep Learning
+#Rule based ranking of the articles based on **recency** and **event magnitude** 
 
-A comprehensive NLP project for stock analysis using financial news data, web scraping, and fine-tuned reasoning models.
 
-## Notion Link: https://www.notion.so/NLP-260db05c79c58041b9b9d8552e6cbad3?source=copy_link
+### Recency Scoring
+Recent articles are given higher importance using an **exponential decay formula**:
 
-## Project Overview
+\[
+\text{recency\_score} = e^{-(\text{decay\_rate} \times \text{days\_old})}
+\]
 
-This project implements an intelligent financial news analysis system that:
+- Default decay rate = 0.1 (10% decay per day)
+- Example:
+  - Today → 1.00
+  - 10 days old → 0.37
+  - 30 days old → 0.05
 
-1. **Scrapes Financial News**: Uses Groq API with GPT-OSS-20B and browser search to find top 10 financial news articles for any stock
-2. **Processes Text Data**: Implements comprehensive text cleaning with custom financial term preservation
-3. **Analyzes Sentiment**: Provides detailed sentiment analysis of financial news
-4. **Generates Reasoning**: Fine-tunes models to explain why news events affect stock prices
-5. **Delivers Insights**: Creates comprehensive reports and analysis summaries
+---
 
-#### Note: Prioritize output to JSON format, rewrite NLTK modules as custom code
+### Event Magnitude Scoring
+Articles are classified by **keyword-based event detection**, but **high- and medium-impact keywords are only considered if they appear alongside relevant entities**:
 
-## Architecture
+- Recognized entities: `ORG`, `PRODUCT`, `PERSON`  
+- Low-impact keywords are applied without entity filtering  
+
+| Impact Level | Example Keywords | Score Range |
+|-------------|----------------|------------|
+| High        | earnings, merger, acquisition, bankruptcy, CEO, lawsuit | 0.8 – 0.95 |
+| Medium      | partnership, contract, product launch, rating, deal | 0.4 – 0.6 |
+| Low         | commentary, outlook, update, report, expects | 0.2 – 0.3 |
+
+> NER ensures that impactful keywords are tied to **relevant companies, products, or people**, improving ranking accuracy.
+
+---
+### Final Rank Score
+Each article’s rank score is a weighted combination of recency and magnitude:
+
+\[
+\text{rank\_score} = 0.4 \times \text{recency\_score} + 0.6 \times \text{magnitude\_score}
+\]
+
+This score is then used to **sort and rank all articles**.
+
+---
+
+## Input Format
+Input is a JSON file containing a list of news articles with at least these fields:
+
+```json
+[
+    {
+    "id": 2001,
+    "category": "technology",
+    "datetime": 1767446400,
+    "headline": "Google under EU investigation for data privacy issues in Gemini AI model",
+    "summary": "The European Commission launched an investigation into Google's Gemini AI citing concerns over data collection and transparency.",
+    "source": "Google",
+    "image": "https://example.com/images/google-ai.jpg",
+    "related": "",
+    "url": "https://www.google.com/news/2025/10/30/google-gemini-investigation"
+  }
+]
 
 ```
-AI6127-DNN/
-├── src/                          # Core source code
-│   ├── scrapers/                 # News scraping modules
-│   ├── utils/                    # Utility modules
-│   ├── models/                   # ML model modules
-│   └── pipeline/                 # Main processing pipeline
-├── config/                       # Configuration management
-├── examples/                     # Example scripts and demos
-├── data/                        # Data storage
-│   ├── raw/                     # Raw scraped data
-│   ├── processed/               # Cleaned data
-│   └── models/                  # Trained model artifacts
-├── tests/                       # Unit tests
-└── docs/                        # Documentation
+## Output Format
+output.json contains "rank_score", "recency_score" and "magnitude_score" in addition to the exisitng metadata
+
+```json
+[
+    {
+        "id":2010,
+        "category":"technology",
+        "datetime":1767441600,
+        "headline":"Broadcom CEO comments on semiconductor market stabilization",
+        "summary":"Broadcom CEO Hock Tan noted signs of supply chain normalization and steady enterprise chip demand for 2026.",
+        "source":"Broadcom",
+        "image":"https:\/\/example.com\/images\/broadcom-ceo.jpg",
+        "related":"",
+        "url":"https:\/\/www.broadcom.com\/news\/2025\/10\/market-stabilization",
+        "rank_score":0.91,
+        "recency_score":1.0,
+        "magnitude_score":0.85
+    }
+]
+
 ```
 
-## Features
+## Installation
 
-### News Scraping
-- **Groq Integration**: Uses GPT-OSS-20B with browser search capabilities
-- **Financial Focus**: Targets reputable financial news sources
-- **Time-based Filtering**: Configurable date ranges (default: past year)
-- **Parallel Processing**: Efficient multi-stock analysis
+install dependencies and spaCy languag model
+```bash
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
+```
 
-### Text Processing
-- **Custom CleanText Class**: Implements full preprocessing pipeline
-- **Financial Term Preservation**: Maintains important financial vocabulary
-- **Multi-step Cleaning**:
-  1. Lowercase normalization
-  2. Noise removal (HTML, URLs, irrelevant characters)
-  3. Stop word removal with tokenization
-  4. Stemming using Porter/Snowball stemmers
-  5. Lemmatization with WordNet
-- **Concurrent Processing**: Uses `concurrent.futures` for performance
-
-### AI Models
-- **Sentiment Analysis**: Multi-class classification (positive/negative/neutral)
-- **Reasoning Generation**: Fine-tuned models explain market movements
-- **Question Answering**: Financial Q&A capabilities
-- **Model Fine-tuning**: Custom training on domain-specific data
-
-### Analysis Pipeline
-- **End-to-end Processing**: From scraping to insights
-- **Quality Scoring**: Automated analysis quality assessment
-- **Comprehensive Reporting**: Detailed text and JSON outputs
-- **Portfolio Analysis**: Multi-stock comparison and ranking
-
-
-## Advanced Features
-
-### Multiprocessing Optimization
-- Uses `concurrent.futures.ThreadPoolExecutor` for I/O-bound tasks
-- Uses `concurrent.futures.ProcessPoolExecutor` for CPU-bound tasks
-- Configurable worker limits to prevent resource exhaustion
-
-### Financial Domain Adaptation
-- Custom stop word lists that preserve financial terminology
-- Financial entity recognition and preservation
-- Sentiment analysis tuned for financial contexts
-
-### Quality Assurance
-- Automated quality scoring for analysis results
-- Comprehensive error handling and logging
-- Input validation and sanitization
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
+### Notes
+High- and medium-impact keywords are filtered by relevant NER entities (ORG, PRODUCT, PERSON)
+Low-impact keywords are applied to all text without entity filtering
+Handles all kinds of datetime formats: UNIX timestamps, ISO 8601 strings, or other string formats
+handles all kinds of datetime formats : UNIX, ISO, string, etc.

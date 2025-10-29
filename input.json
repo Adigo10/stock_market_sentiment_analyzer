@@ -1,0 +1,112 @@
+[
+  {
+    "id": 2001,
+    "category": "technology",
+    "datetime": 1767446400,
+    "headline": "Google under EU investigation for data privacy issues in Gemini AI model",
+    "summary": "The European Commission launched an investigation into Google's Gemini AI citing concerns over data collection and transparency.",
+    "source": "Google",
+    "image": "https://example.com/images/google-ai.jpg",
+    "related": "",
+    "url": "https://www.google.com/news/2025/10/30/google-gemini-investigation"
+  },
+  {
+    "id": 2002,
+    "category": "technology",
+    "datetime": 1675125600,
+    "headline": "Apple reports record Q3 earnings beating Wall Street expectations",
+    "summary": "Apple posted a 12% year-over-year revenue increase driven by strong iPhone sales and growth in subscription services.",
+    "source": "Apple",
+    "image": "https://example.com/images/apple-q3.jpg",
+    "related": "",
+    "url": "https://www.apple.com/news/2025/10/apple-q3-earnings"
+  },
+  {
+    "id": 2003,
+    "category": "technology",
+    "datetime": 1767446700,
+    "headline": "Amazon partners with Rivian to deploy new fleet of electric delivery vans",
+    "summary": "Amazon signed a strategic partnership with Rivian to add 10,000 new EVs to its logistics fleet by 2026.",
+    "source": "Amazon",
+    "image": "https://example.com/images/amazon-rivian.jpg",
+    "related": "",
+    "url": "https://www.amazon.com/news/2025/10/amazon-rivian-ev-fleet"
+  },
+  {
+    "id": 2004,
+    "category": "technology",
+    "datetime": 1767448500,
+    "headline": "Microsoft launches Copilot Studio to let enterprises customize AI tools",
+    "summary": "Microsoft introduced a new developer toolkit, Copilot Studio, enabling businesses to tailor AI copilots for specific workflows.",
+    "source": "Microsoft",
+    "image": "https://example.com/images/microsoft-copilot.jpg",
+    "related": "",
+    "url": "https://www.microsoft.com/news/2025/10/copilot-studio-launch"
+  },
+  {
+    "id": 2005,
+    "category": "technology",
+    "datetime": 1767321000,
+    "headline": "Tesla issues software update for Model Y infotainment system",
+    "summary": "Tesla rolled out a routine update improving connectivity and adding new interface features for Model Y vehicles.",
+    "source": "Tesla",
+    "image": "https://example.com/images/tesla-modely-update.jpg",
+    "related": "",
+    "url": "https://www.tesla.com/news/2025/10/modely-software-update"
+  },
+  {
+    "id": 2006,
+    "category": "technology",
+    "datetime": 1711929600,
+    "headline": "Nvidia acquires AI startup DeepCore Labs to strengthen GPU cloud platform",
+    "summary": "Nvidia announced the acquisition of DeepCore Labs, a leading AI infrastructure firm, to expand its enterprise GPU offerings.",
+    "source": "Nvidia",
+    "image": "https://example.com/images/nvidia-deepcore.jpg",
+    "related": "",
+    "url": "https://www.nvidia.com/news/2025/10/deepcore-acquisition"
+  },
+  {
+    "id": 2007,
+    "category": "technology",
+    "datetime": 1767396000,
+    "headline": "Intel stock jumps after analysts upgrade rating amid chip recovery hopes",
+    "summary": "Goldman Sachs upgraded Intel’s stock from ‘Neutral’ to ‘Buy’, citing strong AI chip demand forecasts for 2026.",
+    "source": "Intel",
+    "image": "https://example.com/images/intel-stock.jpg",
+    "related": "",
+    "url": "https://www.intel.com/news/2025/10/stock-upgrade"
+  },
+  {
+    "id": 2008,
+    "category": "technology",
+    "datetime": 1767018300,
+    "headline": "Meta announces $5B stock buyback to restore investor confidence",
+    "summary": "Meta’s board approved a $5B share repurchase plan as ad revenue growth shows early signs of slowing.",
+    "source": "Meta",
+    "image": "https://example.com/images/meta-buyback.jpg",
+    "related": "",
+    "url": "https://www.meta.com/news/2025/10/stock-buyback"
+  },
+  {
+    "id": 2009,
+    "category": "technology",
+    "datetime": 1767208200,
+    "headline": "AMD unveils new Ryzen AI 9000 processors for next-gen laptops",
+    "summary": "AMD introduced its Ryzen AI 9000 series with improved neural processing units and better energy efficiency.",
+    "source": "AMD",
+    "image": "https://example.com/images/amd-ryzen-ai.jpg",
+    "related": "",
+    "url": "https://www.amd.com/news/2025/10/ryzen-ai-9000"
+  },
+  {
+    "id": 2010,
+    "category": "technology",
+    "datetime": 1767441600,
+    "headline": "Broadcom CEO comments on semiconductor market stabilization",
+    "summary": "Broadcom CEO Hock Tan noted signs of supply chain normalization and steady enterprise chip demand for 2026.",
+    "source": "Broadcom",
+    "image": "https://example.com/images/broadcom-ceo.jpg",
+    "related": "",
+    "url": "https://www.broadcom.com/news/2025/10/market-stabilization"
+  }
+]
