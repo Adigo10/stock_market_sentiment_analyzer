@@ -1,39 +1,48 @@
 # Stock Market Sentiment Analyzer - Tanmay branch
 
-## Overview
-A tool for analyzing market sentiment from various data sources to assist with stock market insights.
+## Similarity score and filtering component
+- Takes summary of top 5 articles from input.json
+- Uses cosine similarity (subject to change) to compare against remaining 20 articles
+- Extracts top 10 articles + "x" articles with similarity score > threshold value (customizable through pipeline instantiation)
+- Appends all to a final output.json, maintaining initial ID values for future metrics or something and also appends similarity score value
 
-## Features
-- Sentiment analysis of financial news and social media
-- Real-time data processing
-- Visualization of sentiment trends
-- Stock price correlation analysis
 
-## Installation
-```bash
-git clone https://github.com/username/stock_market_sentiment_analyzer.git
-cd stock_market_sentiment_analyzer
+## Usage
+
+Run the notebook.py cells in order
+
+Otherwise simply
+```
 pip install -r requirements.txt
 ```
 
-## Usage
+Import the pipeline class:
 ```python
-from sentiment_analyzer import SentimentAnalyzer
 
-analyzer = SentimentAnalyzer()
-sentiment = analyzer.analyze_stock("AAPL")
-print(sentiment)
+from pipeline import SimilarityExpansionPipeline
 ```
 
-## Requirements
-- Python 3.7+
-- pandas
-- numpy
-- scikit-learn
-- matplotlib
+Select your model configuration and threshold values:
+```python
+pipeline = SimilarityExpansionPipeline(
+    model_name='all-MiniLM-L6-v2',
+    similarity_threshold=0.5,
+    top_k=10
+)
+```
 
-## License
-MIT License
+Specify your input and output file paths:
+```
+INPUT_FILE = 'sample.json'
+OUTPUT_FILE = 'output.json'
+```
 
-## Contributing
-Pull requests are welcome. For major changes, please open an issue first.
+Run the pipeline:
+```
+final_articles = pipeline.run(INPUT_FILE, OUTPUT_FILE)
+```
+
+Visualize results (Optional):
+```
+pipeline.visualize_results(final_articles)
+```

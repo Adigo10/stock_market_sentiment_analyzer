@@ -1,5 +1,0 @@
-fastapi==0.117.1
-nltk==3.7
-openai==1.108.1
-pydantic==1.10.12
-uvicorn==0.36.0
