@@ -1,12 +1,10 @@
-#Rule based ranking of the articles based on **recency** and **event magnitude** 
+# Rule based ranking of the articles based on **recency** and **event magnitude** 
 
 
 ### Recency Scoring
 Recent articles are given higher importance using an **exponential decay formula**:
 
-\[
-\text{recency\_score} = e^{-(\text{decay\_rate} \times \text{days\_old})}
-\]
+score = e^(-decay_rate × days_old)
 
 - Default decay rate = 0.1 (10% decay per day)
 - Example:
@@ -34,9 +32,7 @@ Articles are classified by **keyword-based event detection**, but **high- and me
 ### Final Rank Score
 Each article’s rank score is a weighted combination of recency and magnitude:
 
-\[
-\text{rank\_score} = 0.4 \times \text{recency\_score} + 0.6 \times \text{magnitude\_score}
-\]
+rank_score = 0.4 * recency_score + 0.6 * event_magnitude_score
 
 This score is then used to **sort and rank all articles**.
 
@@ -93,7 +89,6 @@ python -m spacy download en_core_web_sm
 ```
 
 ### Notes
-High- and medium-impact keywords are filtered by relevant NER entities (ORG, PRODUCT, PERSON)
-Low-impact keywords are applied to all text without entity filtering
-Handles all kinds of datetime formats: UNIX timestamps, ISO 8601 strings, or other string formats
-handles all kinds of datetime formats : UNIX, ISO, string, etc.
+- High- and medium-impact keywords are filtered by relevant NER entities (ORG, PRODUCT, PERSON)
+- Low-impact keywords are applied to all text without entity filtering
+- Handles all kinds of datetime formats: UNIX timestamps, ISO 8601 strings, or other string formats
