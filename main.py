@@ -16,13 +16,16 @@ sys.path.insert(0, str(src_path))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.data_process import DataCleaner
-from src.fetch_data import CompanyDataFetcher  
+from src.fetch_data import CompanyDataFetcher
 
 class CompanyRequest(BaseModel):
     company_name: str
+    from_date: str  # YYYY-MM-DD
+    to_date: str    # YYYY-MM-DD
 
 class CompanyResponse(BaseModel):
     company_name: str
+    news_data: str  # JSON string of deduplicated news
     result: Dict[str, Any]
     status: str
 
@@ -39,15 +42,21 @@ class APIHandler:
     
     async def analyze_company(self, request: CompanyRequest):
         """
-        Analyze a company using NLP processing
+        Analyze a company: fetch news data and process with NLP
         """
         try:
-            # Fetch and process company data
-            raw_data = await self._fetch_data_async(request.company_name)
-            result = await self._process_data_async(raw_data)
+            # Fetch company news (returns JSON string)
+            raw_data_json = self.fetcher.fetch_company_news(
+                company_name=request.company_name,
+                from_date=request.from_date,
+                to_date=request.to_date
+            )
+            
+            result = await self._process_data_async(raw_data_json)
             
             return CompanyResponse(
                 company_name=request.company_name,
+                news_data=raw_data_json,
                 result=result,
                 status="success"
             )
@@ -55,16 +64,12 @@ class APIHandler:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
     
+    async def _process_data_async(self, raw_data_json: str):
+        ## Implement NLP processing logic here
+        return ""
+    
     async def root(self):
         return {"message": "NLP Company Analysis API is running"}
-
-# Create API handler instance
-    company_name: str
-
-class CompanyResponse(BaseModel):
-    company_name: str
-    result: Dict[str, Any]
-    status: str
 
 # Create API handler instance
 api_handler = APIHandler()

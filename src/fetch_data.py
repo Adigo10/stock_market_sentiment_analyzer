@@ -1,98 +1,119 @@
-import json
-import openai
-from datetime import datetime
-from typing import Dict, List, Any
+import os
+import time
+import requests
+from datetime import datetime, timedelta
+import time
+import pandas as pd
+from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
-load_dotenv(dotenv_path='.env')
+from dedup_news import dedup_news_articles
+import json
+
+# Load environment variables - automatically searches for .env in current and parent directories
+load_dotenv()
 
 class CompanyDataFetcher:
-    def __init__(self, api_key: str):
-        """Initialize with OpenAI API key"""
-        self.client = openai.OpenAI(api_key=api_key)
+    """Simple wrapper to fetch financial data from Finnhub.io.
+
+    Usage:
+        api = CompanyDataFetcher()  # reads FINNHUB_API_KEY from env
+        news = api.fetch_company_news('AAPL', '2024-01-01', '2024-01-10')
+
+    The class returns parsed JSON responses from Finnhub endpoints and raises
+    requests.HTTPError for non-2xx responses.
+
+    symbols for possible stocks:
+    stocks = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "JPM", "V", "UNH"]
+    usage example - pass symbol = "NVDA" in fetch_company_news method.
+    """
+
+    BASE_URL = "https://finnhub.io/api/v1"
+
+    def __init__(self, api_key: Optional[str] = None, timeout: int = 10):
+        api_key = api_key or os.getenv("FINNHUB_API_KEY")
+        if not api_key:
+            raise ValueError("Finnhub API key not provided. Set FINNHUB_API_KEY in the environment or pass api_key to the constructor.")
+        self.api_key = api_key
+        self.timeout = timeout
+
+    def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        url = f"{self.BASE_URL}{path}"
+        params = params.copy() if params else {}
+        params["token"] = self.api_key
+        resp = requests.get(url, params=params, timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
     
-    def fetch_company_data(self, company_name: str) -> Dict[str, Any]:
-        """
-        Fetch latest news, forum discussions, and social media posts about a company
+    def _get_all_stocks(self) -> List[Dict[str, str]]:
+        """Fetch list of all US stocks from Finnhub."""
+        stocks = self._get("/stock/symbol", {"exchange": "US"})
+        return [{"symbol": s["symbol"], "description": s["description"]} for s in stocks]
+    
+    def _find_symbol_by_company_name(self, company_name: str) -> Optional[str]:
+        """Find stock symbol using Finnhub's search API."""
+        # Use Finnhub's search endpoint which returns ranked results
+        search_results = self._get("/search", {"q": company_name})
         
-        Args:
-            company_name (str): Name of the company to search for
-            
-        Returns:
-            Dict: JSON-formatted data containing fetched information
+        if not search_results or "result" not in search_results:
+            return None
+        
+        results = search_results["result"]
+        if not results:
+            return None
+        
+        # Return the first (best) result's symbol
+        # Finnhub ranks results by relevance, so the first match is usually correct
+        first_result = results[0]
+        return first_result.get("symbol")
+    
+    def fetch_company_news(self, company_name: str, from_date: str, to_date: str) -> str:
         """
+        Fetch company news by company name between two dates (YYYY-MM-DD).
+        First finds the stock symbol by matching company name, then fetches news.
+        Returns JSON string of deduplicated news articles.
+        """
+        # Find symbol for company name
+        symbol = self._find_symbol_by_company_name(company_name)
+        if not symbol:
+            raise ValueError(f"Could not find stock symbol for company: {company_name}")
+        
+        print(f"Found symbol '{symbol}' for company '{company_name}'")
+        
+        # Validate dates
         try:
-            # Create search queries for different content types
-            queries = [
-                f"{company_name} latest news 2024",
-                f"{company_name} forum discussion reddit",
-                f"{company_name} social media posts trending"
-            ]
-            
-            results = {
-                "company": company_name,
-                "timestamp": datetime.now().isoformat(),
-                "data": {
-                    "news": [],
-                    "forum_discussions": [],
-                    "social_media_posts": []
-                }
-            }
-            
-            # Use GPT with browser search for each query type
-            for i, query in enumerate(queries):
-                response = self.client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a helpful assistant that searches the web for company information. Provide structured data about the company."
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Search for: {query}. Provide top 5 relevant results with titles, sources, and brief summaries."
-                        }
-                    ],
-                    tools=[{
-                        "type": "function",
-                        "function": {
-                            "name": "web_search",
-                            "description": "Search the web for information"
-                        }
-                    }]
-                )
-                
-                # Parse response and categorize
-                content = response.choices[0].message.content
-                
-                if i == 0:  # News
-                    results["data"]["news"] = self._parse_search_results(content)
-                elif i == 1:  # Forum discussions
-                    results["data"]["forum_discussions"] = self._parse_search_results(content)
-                else:  # Social media
-                    results["data"]["social_media_posts"] = self._parse_search_results(content)
-            
-            # Save to JSON file
-            filename = f"{company_name.replace(' ', '_')}_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
-            
-            return results
-            
-        except Exception as e:
-            return {"error": f"Failed to fetch data: {str(e)}"}
-    
-    def _parse_search_results(self, content: str) -> List[Dict[str, str]]:
-        """Parse search results from GPT response"""
-        # Simple parsing logic - in practice, you'd want more sophisticated parsing
-        results = []
-        lines = content.split('\n')
-        
-        for line in lines:
-            if line.strip() and ('http' in line or 'www' in line):
-                results.append({
-                    "title": line.strip()[:100],
-                    "summary": line.strip(),
-                    "source": "web_search"
-                })
-        
-        return results[:5]  # Return top 5 results
+            datetime.strptime(from_date, "%Y-%m-%d")
+            datetime.strptime(to_date, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("from_date and to_date must be in YYYY-MM-DD format")
+
+        # Fetch all news
+        fetch_start = time.time()
+        news = self._get("/company-news", {"symbol": symbol, "from": from_date, "to": to_date})
+        print(f"Fetched {len(news)} articles for {symbol} from Finnhub in {time.time() - fetch_start:.2f} seconds.")
+
+        # Deduplicate by article ID
+        dedup_start = time.time()
+        seen_ids = set()
+        deduped_news = []
+        for article in news:
+            aid = article.get('id')
+            if aid not in seen_ids:
+                seen_ids.add(aid)
+                deduped_news.append(article)
+        print(f"After ID deduplication: {len(deduped_news)} articles. Took {time.time() - dedup_start:.2f} seconds.")
+
+        # Semantic deduplication
+        semantic_start = time.time()
+        unique_news = dedup_news_articles(deduped_news)
+        print(f"After semantic deduplication: {len(unique_news)} unique articles. Took {time.time() - semantic_start:.2f} seconds.")
+
+        # Convert 'datetime' field from UNIX to YYYY-MM-DD string
+        for article in unique_news:
+            dt = article.get('datetime')
+            if isinstance(dt, (int, float)):
+                try:
+                    article['datetime'] = datetime.utcfromtimestamp(dt).strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+
+        return json.dumps(unique_news, ensure_ascii=False)
