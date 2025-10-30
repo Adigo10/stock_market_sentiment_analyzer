@@ -9,19 +9,22 @@ from dotenv import load_dotenv
 from dedup_news import dedup_news_articles
 import json
 
-# Load environment variables from .env if present
-load_dotenv(dotenv_path='.env')
+# Load environment variables - automatically searches for .env in current and parent directories
+load_dotenv()
 
-
-class FinnhubFetcher:
+class CompanyDataFetcher:
     """Simple wrapper to fetch financial data from Finnhub.io.
 
     Usage:
-        api = FinnhubFetcher()  # reads FINNHUB_API_KEY from env
+        api = CompanyDataFetcher()  # reads FINNHUB_API_KEY from env
         news = api.fetch_company_news('AAPL', '2024-01-01', '2024-01-10')
 
     The class returns parsed JSON responses from Finnhub endpoints and raises
     requests.HTTPError for non-2xx responses.
+
+    symbols for possible stocks:
+    stocks = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "JPM", "V", "UNH"]
+    usage example - pass symbol = "NVDA" in fetch_company_news method.
     """
 
     BASE_URL = "https://finnhub.io/api/v1"
@@ -40,8 +43,42 @@ class FinnhubFetcher:
         resp = requests.get(url, params=params, timeout=self.timeout)
         resp.raise_for_status()
         return resp.json()
-    def fetch_company_news(self, symbol: str, from_date: str, to_date: str) -> List[Dict[str, Any]]:
-        """Fetch company news between two dates (YYYY-MM-DD) in a single call, deduplicate by article ID and then semantically."""
+    
+    def _get_all_stocks(self) -> List[Dict[str, str]]:
+        """Fetch list of all US stocks from Finnhub."""
+        stocks = self._get("/stock/symbol", {"exchange": "US"})
+        return [{"symbol": s["symbol"], "description": s["description"]} for s in stocks]
+    
+    def _find_symbol_by_company_name(self, company_name: str) -> Optional[str]:
+        """Find stock symbol using Finnhub's search API."""
+        # Use Finnhub's search endpoint which returns ranked results
+        search_results = self._get("/search", {"q": company_name})
+        
+        if not search_results or "result" not in search_results:
+            return None
+        
+        results = search_results["result"]
+        if not results:
+            return None
+        
+        # Return the first (best) result's symbol
+        # Finnhub ranks results by relevance, so the first match is usually correct
+        first_result = results[0]
+        return first_result.get("symbol")
+    
+    def fetch_company_news(self, company_name: str, from_date: str, to_date: str) -> str:
+        """
+        Fetch company news by company name between two dates (YYYY-MM-DD).
+        First finds the stock symbol by matching company name, then fetches news.
+        Returns JSON string of deduplicated news articles.
+        """
+        # Find symbol for company name
+        symbol = self._find_symbol_by_company_name(company_name)
+        if not symbol:
+            raise ValueError(f"Could not find stock symbol for company: {company_name}")
+        
+        print(f"Found symbol '{symbol}' for company '{company_name}'")
+        
         # Validate dates
         try:
             datetime.strptime(from_date, "%Y-%m-%d")
@@ -80,10 +117,3 @@ class FinnhubFetcher:
                     pass
 
         return json.dumps(unique_news, ensure_ascii=False)
-    
-    def fetch_stocks(self) -> List[Dict[str, Any]]:
-        """Fetch list of stocks from Finnhub."""
-        stocks = self._get("/stock/symbol", {"exchange": "US"})
-        # keep only symbol and description
-        stocks = [{"symbol": s["symbol"], "description": s["description"]} for s in stocks]
-        return json.dumps(stocks, ensure_ascii=False)
