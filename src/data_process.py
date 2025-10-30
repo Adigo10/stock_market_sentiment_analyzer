@@ -47,7 +47,7 @@ class FinancialDataCleaner:
         self.patterns = {
             'currency': r'[\$€£¥]\s*\d+(?:\.\d+)?\s*[BMK]?|(?:USD|EUR|GBP)\s*\d+(?:\.\d+)?\s*[BMK]?',
             'percentage': r'[+-]?\d+(?:\.\d+)?\s*%|[+-]?\d+(?:\.\d+)?\s+percent',
-            'financial_acronyms': r'\b(?:EPS|P/E|PE|ROI|ROE|EBITDA|FCF|YoY|MoM|QoQ|M&A|IPO|CEO|CFO|COO|CTO|FDA|SEC)\b',
+            'financial_acronyms': r'\b(?:EPS|P/E|PE|ROI|ROE|EBITDA|FCF|YoY|MoM|QoQ|M&A|IPO|CEO|CFO|COO|CTO|FDA|SEC|S&P)\b',
             'quarters': r'\bQ[1-4]\b|\bFY\s*\d{2,4}\b',
             'ratios': r'\d+(?:\.\d+)?\s*[:/x]\s*\d+(?:\.\d+)?'
         }
@@ -204,22 +204,18 @@ class FinancialDataCleaner:
         
         return cleaned_data
     
-    def process_json_file(self, input_file: str, output_file: str, 
-) -> Dict[str, Any]:
+    def process_json_file(self, input_file: str,output_file: str) -> Dict[str, Any]:
         """
         Process a JSON file and save cleaned results.
         
         Args:
-            input_file: Path to input JSON file
+            input_file: Path to input JSON string
             output_file: Path to output JSON file
-            extract_entities: Whether to extract NER entities
             
         Returns:
             Cleaned data dictionary
         """
-        
-        with open(input_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = json.loads(input_file)
         cleaned_data = self.clean_data(data)
         
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -228,7 +224,6 @@ class FinancialDataCleaner:
         print(f"Data has been cleaned as saved to {output_file}.")
         
         return cleaned_data
-
 
 # ============= USAGE EXAMPLES =============
 
