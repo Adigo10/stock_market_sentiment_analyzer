@@ -3,6 +3,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from typing import List, Dict, Tuple
 from pathlib import Path
+from datetime import datetime, timezone
 
 print(" Imports successful")
 
@@ -47,9 +48,31 @@ class SimilarityExpansionPipeline:
         print(f" Loaded {len(articles)} articles")
         return articles
 
+    # ---------- Field helpers to align with expected input schema ----------
+    @staticmethod
+    def _get_headline(article: Dict) -> str:
+        # Prefer 'headline'; fall back to 'title' if present
+        return article.get('headline') or article.get('title') or ''
+
+    @staticmethod
+    def _get_text(article: Dict) -> str:
+        # Prefer 'summary'; fall back to 'content', then 'headline'
+        return article.get('summary') or article.get('content') or article.get('headline') or ''
+
+    @staticmethod
+    def _get_date_str(article: Dict) -> str:
+        # Prefer epoch seconds in 'datetime'; else 'date' as-is; else 'N/A'
+        if 'datetime' in article and isinstance(article['datetime'], (int, float)):
+            try:
+                # Normalize to UTC ISO date
+                return datetime.fromtimestamp(article['datetime'], tz=timezone.utc).strftime('%Y-%m-%d')
+            except Exception:
+                pass
+        return str(article.get('date', 'N/A'))
+
     def separate_articles(self, articles: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
         """
-        Separate articles into top 5 (with rank_score) and remaining.
+        Separate articles into top 5 (highest rank_score) and remaining.
 
         Args:
             articles: List of all articles
@@ -57,19 +80,14 @@ class SimilarityExpansionPipeline:
         Returns:
             Tuple of (top_5_articles, remaining_articles)
         """
-        print(f"\n Separating articles by rank_score field...")
+        print(f"\n Separating articles: taking top 5 by rank_score, rest as remaining...")
 
-        top_5 = []
-        remaining = []
+        # Sort all by rank_score (descending)
+        sorted_all = sorted(articles, key=lambda x: x.get('rank_score', 0.0), reverse=True)
 
-        for article in articles:
-            if 'rank_score' in article:
-                top_5.append(article)
-            else:
-                remaining.append(article)
-
-        # Sort top 5 by rank_score (descending)
-        top_5.sort(key=lambda x: x.get('rank_score', 0), reverse=True)
+        # Slice
+        top_5 = sorted_all[:5]
+        remaining = sorted_all[5:]
 
         print(f" Top 5 articles: {len(top_5)}")
         print(f" Remaining articles: {len(remaining)}")
@@ -77,7 +95,9 @@ class SimilarityExpansionPipeline:
         # Print top 5 for verification
         print(f"\n Top 5 Articles (by rank_score):")
         for article in top_5:
-            print(f"   [{article['id']}] {article['title'][:60]}... (score: {article['rank_score']:.2f})")
+            headline = self._get_headline(article)
+            score = article.get('rank_score', 0.0)
+            print(f"   [{article.get('id','?')}] {headline[:60]}... (score: {score:.2f})")
 
         return top_5, remaining
 
@@ -117,9 +137,9 @@ class SimilarityExpansionPipeline:
         print(f"\n Step 1: Generating summaries for top {len(top_articles)} articles...")
         summaries = []
         for article in top_articles:
-            summary = self.generate_summary(article['content'])
+            summary = self.generate_summary(self._get_text(article))
             summaries.append(summary)
-            print(f"   Article {article['id']}: {summary[:70]}...")
+            print(f"   Article {article.get('id','?')}: {summary[:70]}...")
 
         # Combine all summaries
         combined_summary = ' '.join(summaries)
@@ -129,7 +149,7 @@ class SimilarityExpansionPipeline:
         print(f"\n Step 2: Encoding texts with Sentence Transformer...")
         summary_embedding = self.model.encode(combined_summary, convert_to_tensor=True)
 
-        remaining_texts = [art['content'] for art in remaining_articles]
+        remaining_texts = [self._get_text(art) for art in remaining_articles]
         remaining_embeddings = self.model.encode(remaining_texts, convert_to_tensor=True)
         print(f" Encoded {len(remaining_articles)} article embeddings")
 
@@ -151,7 +171,7 @@ class SimilarityExpansionPipeline:
         print(f" Similarity scores computed")
         print(f"\n Top 10 similarity scores:")
         for i, art in enumerate(sorted_articles[:10]):
-            print(f"   {i+1}. Article {art['id']}: {art['similarity_score']:.4f}")
+            print(f"   {i+1}. Article {art.get('id','?')}: {art.get('similarity_score',0.0):.4f}")
 
         # Step 4: Select articles
         print(f"\n Step 4: Selecting articles...")
@@ -159,15 +179,15 @@ class SimilarityExpansionPipeline:
 
         # Select top K
         selected = sorted_articles[:self.top_k]
-        selected_ids = {art['id'] for art in selected}
+        selected_ids = {art.get('id') for art in selected}
 
         # Add any additional articles above threshold
         additional = []
         for article in sorted_articles[self.top_k:]:
-            if article['similarity_score'] > self.similarity_threshold:
+            if article.get('similarity_score', 0.0) > self.similarity_threshold:
                 additional.append(article)
-                selected_ids.add(article['id'])
-                print(f"     Added article {article['id']} (score: {article['similarity_score']:.4f})")
+                selected_ids.add(article.get('id'))
+                print(f"     Added article {article.get('id','?')} (score: {article.get('similarity_score',0.0):.4f})")
 
         selected.extend(additional)
 
@@ -197,9 +217,10 @@ class SimilarityExpansionPipeline:
         seen_ids = set()
         unique_articles = []
         for article in final_articles:
-            if article['id'] not in seen_ids:
+            art_id = article.get('id')
+            if art_id not in seen_ids:
                 unique_articles.append(article)
-                seen_ids.add(article['id'])
+                seen_ids.add(art_id)
 
         # Save to JSON
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -235,10 +256,16 @@ class SimilarityExpansionPipeline:
         top_5, remaining = self.separate_articles(articles)
 
         if len(top_5) == 0:
-            raise ValueError("No articles with 'rank_score' field found!")
+            raise ValueError("No articles found with usable 'rank_score'!")
 
         if len(remaining) == 0:
-            raise ValueError("No remaining articles found for similarity comparison!")
+            print("\n No remaining articles after top 5. Skipping similarity step and saving top 5 only.")
+            # Combine and save just the top 5
+            final_articles = self.combine_and_save(top_5, [], output_file)
+            print("\n" + "="*70)
+            print(" PIPELINE COMPLETE")
+            print("="*70)
+            return final_articles
 
         # Compute similarities and select
         selected = self.compute_similarities(top_5, remaining)
@@ -268,17 +295,21 @@ class SimilarityExpansionPipeline:
         selected = [art for art in final_articles if 'rank_score' not in art]
 
         print(f"\n TOP 5 ARTICLES (from rule-based ranking):")
-        for article in sorted(top_5, key=lambda x: x['rank_score'], reverse=True):
-            print(f"\n   [{article['id']}] {article['title']}")
-            print(f"       Rank Score: {article['rank_score']:.2f}")
-            print(f"       Date: {article['date']}")
-            print(f"       Impact: {article.get('impact_level', 'N/A')}")
+        for article in sorted(top_5, key=lambda x: x.get('rank_score', 0.0), reverse=True):
+            headline = self._get_headline(article)
+            date_str = self._get_date_str(article)
+            print(f"\n   [{article.get('id','?')}] {headline}")
+            print(f"       Rank Score: {article.get('rank_score', 0.0):.2f}")
+            print(f"       Date: {date_str}")
+            print(f"       Source: {article.get('source', 'N/A')}")
 
         print(f"\n\n SELECTED {len(selected)} SIMILAR ARTICLES:")
         for article in sorted(selected, key=lambda x: x.get('similarity_score', 0), reverse=True):
-            print(f"\n   [{article['id']}] {article['title']}")
+            headline = self._get_headline(article)
+            date_str = self._get_date_str(article)
+            print(f"\n   [{article.get('id','?')}] {headline}")
             print(f"       Similarity: {article.get('similarity_score', 0):.4f}")
-            print(f"       Date: {article['date']}")
-            print(f"       Impact: {article.get('impact_level', 'N/A')}")
+            print(f"       Date: {date_str}")
+            print(f"       Source: {article.get('source', 'N/A')}")
 
         print("\n" + "="*70)
