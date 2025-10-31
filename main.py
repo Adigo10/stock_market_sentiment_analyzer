@@ -4,6 +4,7 @@ from typing import Dict, Any
 import sys
 import os
 import uvicorn
+import time
 from pathlib import Path
 
 # Get the absolute path of the current file's directory
@@ -17,6 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.data_process import FinancialDataCleaner
 from src.fetch_data import CompanyDataFetcher
+from src.cache_manager import CacheManager
 
 from constants import COMPANY_SYMBOLS
 
@@ -34,6 +36,7 @@ class APIHandler:
         self.app = FastAPI(title="NLP Company Analysis API", version="1.0.0")
         self.fetcher = CompanyDataFetcher()
         self.processor = FinancialDataCleaner()
+        self.cache = CacheManager()  # In-memory cache
         self._setup_routes()
     
     def _setup_routes(self):
@@ -43,8 +46,12 @@ class APIHandler:
     
     async def analyze_company(self, request: CompanyRequest):
         """
-        Analyze a company: fetch news data and process with NLP
+        Analyze a company: fetch news data and process with NLP.
+        Uses in-memory cache to avoid re-fetching and re-processing.
         """
+        # Start timing
+        start_time = time.time()
+        
         try:
             # Create a lowercase mapping for case-insensitive lookup
             company_name_lower = request.company_name.lower()
@@ -56,14 +63,37 @@ class APIHandler:
             # Get the original casing from the mapping
             original_company_name = lower_to_original[company_name_lower]
 
+            # Check if data exists in cache
+            cached_data = self.cache.get(original_company_name)
+            
+            if cached_data is not None:
+                # Data exists in cache - return it
+                elapsed_time = time.time() - start_time
+                print(f"✓ Returning cached data for '{original_company_name}' | Latency: {elapsed_time:.3f}s")
+                return CompanyResponse(
+                    company_name=original_company_name,
+                    news_data=cached_data["raw_data"],
+                    result=cached_data["processed_data"],
+                    status="success (cached)"
+                )
+            
+            # Data doesn't exist - fetch, process, and save
+            print(f"✗ No cache for '{original_company_name}' - fetching and processing...")
+            
             # Fetch company news (returns JSON string)
-            # Automatically fetches news from last 30 days
             raw_data_json = self.fetcher.fetch_company_news(
                 company_name=original_company_name,
             )
             
+            # Process the data
             result = await self._process_data_async(raw_data_json)
             
+            # Save to cache before returning
+            self.cache.save(original_company_name, raw_data_json, result)
+            
+            # Log total latency
+            elapsed_time = time.time() - start_time
+            print(f"✓ Request completed for '{original_company_name}' | Total Latency: {elapsed_time:.3f}s")
             
             return CompanyResponse(
                 company_name=original_company_name,
@@ -73,6 +103,8 @@ class APIHandler:
             )
         
         except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"✗ Request failed for '{request.company_name}' | Latency: {elapsed_time:.3f}s | Error: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
     
     async def _process_data_async(self, raw_data_json: str):
