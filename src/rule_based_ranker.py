@@ -160,7 +160,7 @@ class FinancialNewsRanker:
 # ------------------ Example Usage ------------------
 if __name__ == "__main__":
     # Load JSON
-    with open("processed_output.json", "r") as f:
+    with open("../processed_output.json", "r") as f:
         data = json.load(f)
 
     df = pd.DataFrame(data["unique_news"])
