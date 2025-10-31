@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 processed_output.json
 ranked_articles.json
+input.json
