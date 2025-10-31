@@ -45,7 +45,11 @@ Cache Check → Cache Hit (0.000s) → Return Data
      ↓
 Cache Miss
      ↓
-Finnhub API (10 paginated calls)
+Finnhub API (10 paginated calls in REVERSE order)
+     ├─ Chunk 1: Oct 28-31 (latest)
+     ├─ Chunk 2: Oct 25-28
+     ├─ Chunk 3: Oct 22-25
+     └─ ... → Oct 1-4 (oldest)
      ↓
 Deduplication (ID + Semantic)
      ↓
@@ -139,13 +143,20 @@ Note: Cache does NOT expire automatically. Data persists until server restart.
 
 ### Pagination Strategy
 
-Time-based chunking:
+Time-based chunking with **reverse chronological order**:
 - 30 days ÷ 3 days per chunk = 10 API calls per request
+- **Fetches latest data first** (today → 30 days ago)
+- Example: Oct 28-31, Oct 25-28, Oct 22-25... Oct 1-4
 
 Why 3-day chunks?
 - Well below rate limits (10 calls << 60/min)
 - Fast enough (6-7 seconds total)
 - Good balance between speed and API usage
+
+Why reverse chronological?
+- Most recent news is most relevant for sentiment analysis
+- If API fails midway, still have the latest critical data
+- Better for real-time applications
 
 ### Fail-Fast with Partial Data
 

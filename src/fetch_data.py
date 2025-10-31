@@ -10,11 +10,11 @@ from constants import COMPANY_SYMBOLS
 
 load_dotenv()
 
-class CompanyDataFetcher:
+class CompanyNewsFetcher:
     """Simple wrapper to fetch financial data from Finnhub.io.
 
     Usage:
-        api = CompanyDataFetcher()  # reads FINNHUB_API_KEY from env
+        api = CompanyNewsFetcher()  # reads FINNHUB_API_KEY from env
         news = api.fetch_company_news('AAPL')
 
     The class returns parsed JSON responses from Finnhub endpoints and raises
@@ -44,22 +44,23 @@ class CompanyDataFetcher:
     def _fetch_news_paginated(self, symbol: str, from_date_obj: datetime, to_date_obj: datetime, chunk_days: int = 3) -> List[Dict]:
         """
         Fetch news in time chunks to avoid hitting API limits.
+        Fetches in REVERSE chronological order (latest data first, then go backwards).
         
         Args:
             symbol: Stock symbol
-            from_date_obj: Start date
-            to_date_obj: End date
+            from_date_obj: Start date (oldest)
+            to_date_obj: End date (most recent)
             chunk_days: Number of days per chunk (default: 3 days)
         
         Returns:
             List of all news articles
         """
         all_news = []
-        current_start = from_date_obj
+        current_end = to_date_obj  # Start from the most recent date
         failed_chunks = 0
         
-        while current_start < to_date_obj:
-            current_end = min(current_start + timedelta(days=chunk_days), to_date_obj)
+        while current_end > from_date_obj:
+            current_start = max(current_end - timedelta(days=chunk_days), from_date_obj)
             
             from_str = current_start.strftime("%Y-%m-%d")
             to_str = current_end.strftime("%Y-%m-%d")
@@ -76,7 +77,7 @@ class CompanyDataFetcher:
                 print(f"⚠️  Failed to fetch chunk {from_str} to {to_str}: {str(e)}")
                 # Continue with next chunk instead of failing completely
             
-            current_start = current_end + timedelta(days=1)
+            current_end = current_start - timedelta(days=1)  # Move backwards in time
         
         # If all chunks failed, raise an error
         if failed_chunks > 0 and len(all_news) == 0:
