@@ -46,6 +46,10 @@ class APIHandler:
         Analyze a company: fetch news data and process with NLP
         """
         try:
+
+            if request.company_name not in COMPANY_SYMBOLS:
+                raise HTTPException(status_code=400, detail=f"Company '{request.company_name}' is not supported.")
+
             # Fetch company news (returns JSON string)
             # Automatically fetches news from last 30 days
             raw_data_json = self.fetcher.fetch_company_news(
