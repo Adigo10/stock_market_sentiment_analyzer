@@ -1,4 +1,5 @@
 COMPANY_SYMBOLS = {
+    "Apple": "AAPL",
     "NVIDIA": "NVDA",
     "Google": "GOOGL",
     "Microsoft": "MSFT",
