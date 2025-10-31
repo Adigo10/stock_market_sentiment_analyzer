@@ -160,10 +160,10 @@ class FinancialNewsRanker:
 # ------------------ Example Usage ------------------
 if __name__ == "__main__":
     # Load JSON
-    with open("input.json", "r") as f:
+    with open("processed_output.json", "r") as f:
         data = json.load(f)
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data["unique_news"])
 
     ranker = FinancialNewsRanker(decay_rate=0.1)
     ranked_articles = ranker.rank_articles(df, top_n=None)  # rank all

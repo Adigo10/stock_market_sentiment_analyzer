@@ -3,3 +3,5 @@ pycache/
 __pycache__/
 .env
 .DS_Store
+processed_output.json
+ranked_articles.json
