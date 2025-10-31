@@ -3,13 +3,12 @@ import time
 import requests
 from datetime import datetime, timedelta
 import time
-# import pandas as pd
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from dedup_news import dedup_news_articles
 import json
+from constants import COMPANY_SYMBOLS
 
-# Load environment variables - automatically searches for .env in current and parent directories
 load_dotenv()
 
 class CompanyDataFetcher:
@@ -17,14 +16,10 @@ class CompanyDataFetcher:
 
     Usage:
         api = CompanyDataFetcher()  # reads FINNHUB_API_KEY from env
-        news = api.fetch_company_news('AAPL', '2024-01-01', '2024-01-10')
+        news = api.fetch_company_news('AAPL')
 
     The class returns parsed JSON responses from Finnhub endpoints and raises
     requests.HTTPError for non-2xx responses.
-
-    symbols for possible stocks:
-    stocks = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "JPM", "V", "UNH"]
-    usage example - pass symbol = "NVDA" in fetch_company_news method.
     """
 
     BASE_URL = "https://finnhub.io/api/v1"
@@ -44,52 +39,31 @@ class CompanyDataFetcher:
         resp.raise_for_status()
         return resp.json()
     
-    def _get_all_stocks(self) -> List[Dict[str, str]]:
-        """Fetch list of all US stocks from Finnhub."""
-        stocks = self._get("/stock/symbol", {"exchange": "US"})
-        return [{"symbol": s["symbol"], "description": s["description"]} for s in stocks]
-    
-    def _find_symbol_by_company_name(self, company_name: str) -> Optional[str]:
-        """Find stock symbol using Finnhub's search API."""
-        # Use Finnhub's search endpoint which returns ranked results
-        search_results = self._get("/search", {"q": company_name})
-        
-        if not search_results or "result" not in search_results:
-            return None
-        
-        results = search_results["result"]
-        if not results:
-            return None
-        
-        # Return the first (best) result's symbol
-        # Finnhub ranks results by relevance, so the first match is usually correct
-        first_result = results[0]
-        return first_result.get("symbol")
-    
-    def fetch_company_news(self, company_name: str, from_date: str, to_date: str) -> str:
+    def fetch_company_news(self, company_name: str) -> str:
         """
-        Fetch company news by company name between two dates (YYYY-MM-DD).
-        First finds the stock symbol by matching company name, then fetches news.
-        Returns JSON string of deduplicated news articles.
+        Fetch company news by company name for the last 30 days (1 month).
+        Automatically sets end date to today and start date to 30 days ago.
+        
+        Args:
+            company_name: Name of the company
+        
+        Returns:
+            JSON string of deduplicated news articles.
         """
-        # Find symbol for company name
-        symbol = self._find_symbol_by_company_name(company_name)
-        if not symbol:
-            raise ValueError(f"Could not find stock symbol for company: {company_name}")
+        # Calculate date range: end date is today, start date is 30 days ago
+        to_date_obj = datetime.now()
+        from_date_obj = to_date_obj - timedelta(days=30)
         
-        print(f"Found symbol '{symbol}' for company '{company_name}'")
+        # Format dates as strings
+        from_date = from_date_obj.strftime("%Y-%m-%d")
+        to_date = to_date_obj.strftime("%Y-%m-%d")
         
-        # Validate dates
-        try:
-            datetime.strptime(from_date, "%Y-%m-%d")
-            datetime.strptime(to_date, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError("from_date and to_date must be in YYYY-MM-DD format")
-
+        print(f"Fetching news from {from_date} to {to_date} (last 30 days)")
+        
         # Fetch all news
         fetch_start = time.time()
-        news = self._get("/company-news", {"symbol": symbol, "from": from_date, "to": to_date})
-        print(f"Fetched {len(news)} articles for {symbol} from Finnhub in {time.time() - fetch_start:.2f} seconds.")
+        news = self._get("/company-news", {"symbol": COMPANY_SYMBOLS.get(company_name), "from": from_date, "to": to_date})
+        print(f"Fetched {len(news)} articles for {company_name} from Finnhub in {time.time() - fetch_start:.2f} seconds.")
 
         # Deduplicate by article ID
         dedup_start = time.time()
@@ -115,4 +89,7 @@ class CompanyDataFetcher:
                     article['datetime'] = datetime.utcfromtimestamp(dt).strftime('%Y-%m-%d')
                 except Exception:
                     pass
-        return json.dumps({'unique_news':unique_news}, ensure_ascii=False)
+
+        result = {'unique_news': unique_news}
+        
+        return json.dumps(result, ensure_ascii=False)

@@ -18,10 +18,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from src.data_process import FinancialDataCleaner
 from src.fetch_data import CompanyDataFetcher
 
+from constants import COMPANY_SYMBOLS
+
 class CompanyRequest(BaseModel):
     company_name: str
-    from_date: str  # YYYY-MM-DD
-    to_date: str    # YYYY-MM-DD
 
 class CompanyResponse(BaseModel):
     company_name: str
@@ -39,24 +39,34 @@ class APIHandler:
     def _setup_routes(self):
         self.app.post("/analyze-company", response_model=CompanyResponse)(self.analyze_company)
         self.app.get("/")(self.root)
+        self.app.get("/companies")(self.get_companies)
     
     async def analyze_company(self, request: CompanyRequest):
         """
         Analyze a company: fetch news data and process with NLP
         """
         try:
+            # Create a lowercase mapping for case-insensitive lookup
+            company_name_lower = request.company_name.lower()
+            lower_to_original = {k.lower(): k for k in COMPANY_SYMBOLS.keys()}
+            
+            if company_name_lower not in lower_to_original:
+                raise HTTPException(status_code=400, detail=f"Company '{request.company_name}' is not supported.")
+            
+            # Get the original casing from the mapping
+            original_company_name = lower_to_original[company_name_lower]
+
             # Fetch company news (returns JSON string)
+            # Automatically fetches news from last 30 days
             raw_data_json = self.fetcher.fetch_company_news(
-                company_name=request.company_name,
-                from_date=request.from_date,
-                to_date=request.to_date
+                company_name=original_company_name,
             )
             
             result = await self._process_data_async(raw_data_json)
             
             
             return CompanyResponse(
-                company_name=request.company_name,
+                company_name=original_company_name,
                 news_data=raw_data_json, # this is the raw (unprocessed) news data. can be used for debugging.
                 result=result,
                 status="success"
@@ -74,6 +84,15 @@ class APIHandler:
     
     async def root(self):
         return {"message": "NLP Company Analysis API is running"}
+    
+    async def get_companies(self):
+        """
+        Get the list of supported companies
+        Returns only company names (keys from COMPANY_SYMBOLS mapping)
+        """
+        return {
+            "companies": list(COMPANY_SYMBOLS.keys())
+        }
 
 # Create API handler instance
 api_handler = APIHandler()
