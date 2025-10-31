@@ -48,7 +48,6 @@ class APIHandler:
         try:
             # Fetch company news (returns JSON string)
             # Automatically fetches news from last 30 days
-            # If symbol is None, fetch_company_news will use search API
             raw_data_json = self.fetcher.fetch_company_news(
                 company_name=request.company_name,
             )

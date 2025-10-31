@@ -46,7 +46,6 @@ class CompanyDataFetcher:
         
         Args:
             company_name: Name of the company
-            symbol: Stock symbol (optional). If None, will use search API to find it.
         
         Returns:
             JSON string of deduplicated news articles.
