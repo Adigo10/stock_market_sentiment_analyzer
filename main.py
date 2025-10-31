@@ -46,21 +46,27 @@ class APIHandler:
         Analyze a company: fetch news data and process with NLP
         """
         try:
-
-            if request.company_name not in COMPANY_SYMBOLS:
+            # Create a lowercase mapping for case-insensitive lookup
+            company_name_lower = request.company_name.lower()
+            lower_to_original = {k.lower(): k for k in COMPANY_SYMBOLS.keys()}
+            
+            if company_name_lower not in lower_to_original:
                 raise HTTPException(status_code=400, detail=f"Company '{request.company_name}' is not supported.")
+            
+            # Get the original casing from the mapping
+            original_company_name = lower_to_original[company_name_lower]
 
             # Fetch company news (returns JSON string)
             # Automatically fetches news from last 30 days
             raw_data_json = self.fetcher.fetch_company_news(
-                company_name=request.company_name,
+                company_name=original_company_name,
             )
             
             result = await self._process_data_async(raw_data_json)
             
             
             return CompanyResponse(
-                company_name=request.company_name,
+                company_name=original_company_name,
                 news_data=raw_data_json, # this is the raw (unprocessed) news data. can be used for debugging.
                 result=result,
                 status="success"
