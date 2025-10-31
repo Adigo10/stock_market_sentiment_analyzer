@@ -18,10 +18,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from src.data_process import FinancialDataCleaner
 from src.fetch_data import CompanyDataFetcher
 
+from constants import COMPANY_SYMBOLS
+
 class CompanyRequest(BaseModel):
     company_name: str
-    from_date: str  # YYYY-MM-DD
-    to_date: str    # YYYY-MM-DD
 
 class CompanyResponse(BaseModel):
     company_name: str
@@ -39,6 +39,7 @@ class APIHandler:
     def _setup_routes(self):
         self.app.post("/analyze-company", response_model=CompanyResponse)(self.analyze_company)
         self.app.get("/")(self.root)
+        self.app.get("/companies")(self.get_companies)
     
     async def analyze_company(self, request: CompanyRequest):
         """
@@ -46,10 +47,10 @@ class APIHandler:
         """
         try:
             # Fetch company news (returns JSON string)
+            # Automatically fetches news from last 30 days
+            # If symbol is None, fetch_company_news will use search API
             raw_data_json = self.fetcher.fetch_company_news(
                 company_name=request.company_name,
-                from_date=request.from_date,
-                to_date=request.to_date
             )
             
             result = await self._process_data_async(raw_data_json)
@@ -74,6 +75,15 @@ class APIHandler:
     
     async def root(self):
         return {"message": "NLP Company Analysis API is running"}
+    
+    async def get_companies(self):
+        """
+        Get the list of supported companies
+        Returns only company names (keys from COMPANY_SYMBOLS mapping)
+        """
+        return {
+            "companies": list(COMPANY_SYMBOLS.keys())
+        }
 
 # Create API handler instance
 api_handler = APIHandler()
