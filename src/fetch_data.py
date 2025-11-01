@@ -11,11 +11,11 @@ from constants import COMPANY_SYMBOLS
 
 load_dotenv()
 
-class CompanyNewsFetcher:
+class FinancialNewsFetcher:
     """Async wrapper to fetch financial data from Finnhub.io using parallel requests.
 
     Usage:
-        api = CompanyNewsFetcher()  # reads FINNHUB_API_KEY from env
+        api = FinancialNewsFetcher()  # reads FINNHUB_API_KEY from env
         news = await api.fetch_company_news('AAPL')
 
     The class returns parsed JSON responses from Finnhub endpoints

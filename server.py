@@ -13,17 +13,17 @@ sys.path.insert(0, str(src_path))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.data_process import FinancialDataCleaner
-from src.fetch_data import CompanyNewsFetcher
+from src.fetch_data import FinancialNewsFetcher
 from src.cache_manager import CacheManager
 from model_pipeline import FinancialNewsAnalyzer
 
 from constants import COMPANY_SYMBOLS
 
-class CompanyNewsRequest(BaseModel):
+class FinancialNewsRequest(BaseModel):
     company_name: str
     max_articles: int = None  # Optional: limit returned articles (None = return all)
 
-class CompanyNewsResponse(BaseModel):
+class FinancialNewsResponse(BaseModel):
     company_name: str
     result: List[Dict[str, Any]]  # List of ranked articles
     status: str
@@ -31,14 +31,14 @@ class CompanyNewsResponse(BaseModel):
 class APIHandler:
     def __init__(self):
         self.app = FastAPI(title="NLP Company Analysis API", version="1.0.0")
-        self.fetcher = CompanyNewsFetcher()
+        self.fetcher = FinancialNewsFetcher()
         self.processor = FinancialDataCleaner()
         self.cache = CacheManager()  # In-memory cache
         self._setup_routes()
         self.financial_analyzer = FinancialNewsAnalyzer()
     
     def _setup_routes(self):
-        self.app.post("/analyze-company", response_model=CompanyNewsResponse)(self.analyze_company)
+        self.app.post("/analyze-company", response_model=FinancialNewsResponse)(self.analyze_company)
         self.app.get("/")(self.root)
         self.app.get("/companies")(self.get_companies)
     
@@ -89,7 +89,7 @@ class APIHandler:
         
         return data
     
-    async def analyze_company(self, request: CompanyNewsRequest):
+    async def analyze_company(self, request: FinancialNewsRequest):
         """Analyze company: fetch news and process with NLP. Uses cache."""
         start_time = time.time()
         
@@ -105,7 +105,7 @@ class APIHandler:
             
             result = self.financial_analyzer.analyze_news(data["processed_data"])
 
-            return CompanyNewsResponse(
+            return FinancialNewsResponse(
                 company_name=original_company_name,
                 result=result,
                 status=status
