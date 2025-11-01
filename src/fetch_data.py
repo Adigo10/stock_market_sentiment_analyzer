@@ -1,6 +1,7 @@
 import os
 import time
-import requests
+import asyncio
+import aiohttp
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
@@ -11,14 +12,13 @@ from constants import COMPANY_SYMBOLS
 load_dotenv()
 
 class CompanyNewsFetcher:
-    """Simple wrapper to fetch financial data from Finnhub.io.
+    """Async wrapper to fetch financial data from Finnhub.io using parallel requests.
 
     Usage:
         api = CompanyNewsFetcher()  # reads FINNHUB_API_KEY from env
-        news = api.fetch_company_news('AAPL')
+        news = await api.fetch_company_news('AAPL')
 
-    The class returns parsed JSON responses from Finnhub endpoints and raises
-    requests.HTTPError for non-2xx responses.
+    The class returns parsed JSON responses from Finnhub endpoints
     """
 
     BASE_URL = "https://finnhub.io/api/v1"
@@ -29,21 +29,40 @@ class CompanyNewsFetcher:
             raise ValueError("Finnhub API key not provided. Set FINNHUB_API_KEY in the environment or pass api_key to the constructor.")
         self.api_key = api_key
         self.timeout = timeout
-        # Use session for connection pooling
-        self.session = requests.Session()
 
-    def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
-        """Make GET request to Finnhub API"""
+    async def _get(self, session: aiohttp.ClientSession, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        """Make async GET request to Finnhub API"""
         url = f"{self.BASE_URL}{path}"
         params = params.copy() if params else {}
         params["token"] = self.api_key
-        resp = self.session.get(url, params=params, timeout=self.timeout)
-        resp.raise_for_status()
-        return resp.json()
+        
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+        async with session.get(url, params=params, timeout=timeout) as resp:
+            resp.raise_for_status()
+            return await resp.json()
     
-    def _fetch_news_paginated(self, symbol: str, from_date_obj: datetime, to_date_obj: datetime, chunk_days: int = 3) -> List[Dict]:
+    async def _fetch_single_chunk(self, session: aiohttp.ClientSession, symbol: str, 
+                                   from_str: str, to_str: str) -> tuple[List[Dict], Optional[str]]:
         """
-        Fetch news in time chunks to avoid hitting API limits.
+        Fetch a single chunk of news data asynchronously.
+        
+        Returns:
+            Tuple of (news_list, error_message)
+        """
+        try:
+            chunk_news = await self._get(session, "/company-news", {
+                "symbol": symbol,
+                "from": from_str,
+                "to": to_str
+            })
+            return (chunk_news, None)
+        except Exception as e:
+            error_msg = f"Failed to fetch chunk {from_str} to {to_str}: {str(e)}"
+            return ([], error_msg)
+
+    async def _fetch_news_paginated(self, symbol: str, from_date_obj: datetime, to_date_obj: datetime, chunk_days: int = 3) -> List[Dict]:
+        """
+        Fetch news in time chunks using async parallel requests.
         Fetches in REVERSE chronological order (latest data first, then go backwards).
         
         Args:
@@ -55,29 +74,36 @@ class CompanyNewsFetcher:
         Returns:
             List of all news articles
         """
-        all_news = []
-        current_end = to_date_obj  # Start from the most recent date
-        failed_chunks = 0
+
+        chunks = []
+        current_end = to_date_obj
         
         while current_end > from_date_obj:
             current_start = max(current_end - timedelta(days=chunk_days), from_date_obj)
-            
             from_str = current_start.strftime("%Y-%m-%d")
             to_str = current_end.strftime("%Y-%m-%d")
-            
-            try:
-                chunk_news = self._get("/company-news", {
-                    "symbol": symbol,
-                    "from": from_str,
-                    "to": to_str
-                })
-                all_news.extend(chunk_news)
-            except Exception as e:
+            chunks.append((from_str, to_str))
+            current_end = current_start - timedelta(days=1)
+        
+        # Fetch all chunks in parallel with increased connection limits
+        connector = aiohttp.TCPConnector(limit=30, limit_per_host=30)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            tasks = [
+                self._fetch_single_chunk(session, symbol, from_str, to_str)
+                for from_str, to_str in chunks
+            ]
+            results = await asyncio.gather(*tasks)
+        
+        # Process results
+        all_news = []
+        failed_chunks = 0
+        
+        for news_list, error_msg in results:
+            if error_msg:
                 failed_chunks += 1
-                print(f"⚠️  Failed to fetch chunk {from_str} to {to_str}: {str(e)}")
-                # Continue with next chunk instead of failing completely
-            
-            current_end = current_start - timedelta(days=1)  # Move backwards in time
+                print(f"⚠️  {error_msg}")
+            else:
+                all_news.extend(news_list)
         
         # If all chunks failed, raise an error
         if failed_chunks > 0 and len(all_news) == 0:
@@ -89,11 +115,11 @@ class CompanyNewsFetcher:
         
         return all_news
 
-    def fetch_company_news(self, company_name: str) -> str:
+    async def fetch_company_news(self, company_name: str) -> str:
         """
         Fetch company news by company name for the last 30 days (1 month).
         Automatically sets end date to today and start date to 30 days ago.
-        Uses pagination to respect Finnhub rate limits.
+        Uses async parallel pagination for maximum speed.
         
         Args:
             company_name: Name of the company
@@ -109,16 +135,16 @@ class CompanyNewsFetcher:
         from_date = from_date_obj.strftime("%Y-%m-%d")
         to_date = to_date_obj.strftime("%Y-%m-%d")
         
-        print(f"Fetching news from {from_date} to {to_date} (last 30 days)")
+        print(f"Fetching news from {from_date} to {to_date} (last 30 days) with async parallel requests")
         
         # Get symbol
         symbol = COMPANY_SYMBOLS.get(company_name)
         if not symbol:
             raise ValueError(f"Symbol not found for company: {company_name}")
         
-        # Fetch all news in 3-day chunks (30 days = ~10 API calls)
+        # Fetch all news in 3-day chunks (30 days = ~10 API calls) in parallel
         fetch_start = time.time()
-        news = self._fetch_news_paginated(symbol, from_date_obj, to_date_obj, chunk_days=3)
+        news = await self._fetch_news_paginated(symbol, from_date_obj, to_date_obj, chunk_days=3)
         print(f"Fetched {len(news)} articles for {company_name} in {time.time() - fetch_start:.2f} seconds.")
 
         # Deduplicate by article ID
@@ -149,8 +175,3 @@ class CompanyNewsFetcher:
         result = {'unique_news': unique_news}
         
         return json.dumps(result, ensure_ascii=False)
-    
-    def close(self):
-        """Close the session and cleanup resources"""
-        if hasattr(self, 'session'):
-            self.session.close()
