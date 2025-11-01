@@ -21,7 +21,6 @@ from constants import COMPANY_SYMBOLS
 
 class FinancialNewsRequest(BaseModel):
     company_name: str
-    max_articles: int = None  # Optional: limit returned articles (None = return all)
 
 class FinancialNewsResponse(BaseModel):
     company_name: str
@@ -95,8 +94,8 @@ class APIHandler:
         
         try:
             original_company_name = self._validate_company(request.company_name)
-            data = await self._get_company_data(original_company_name, request.max_articles)
-            
+            data = await self._get_company_data(original_company_name, 250)
+            print(len(data["processed_data"]['unique_news']))
             cached_data = self.cache.get(original_company_name)
             status = "success"
             
@@ -136,8 +135,9 @@ class APIHandler:
         limited_raw_json = json.dumps(raw_data, ensure_ascii=False)
         
         limited_processed = processed_data.copy()
-        if 'processed_articles' in limited_processed and max_articles is not None:
-            limited_processed['processed_articles'] = limited_processed['processed_articles'][:max_articles]
+        # Fixed: Check for 'unique_news' instead of 'processed_articles'
+        if 'unique_news' in limited_processed and max_articles is not None:
+            limited_processed['unique_news'] = limited_processed['unique_news'][:max_articles]
         
         return limited_raw_json, limited_processed
     
