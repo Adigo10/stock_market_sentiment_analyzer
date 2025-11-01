@@ -24,9 +24,9 @@ class FinancialNewsAnalyzer:
     def analyze_news(self, news_data: dict) -> list:
         """
         This function will be called from server.py
-        Call all models and then return list of ranked articles.
+        Add all models and return final result.
         """
         ranked_df = self.rank_articles(news_data)
         
-        ## changed ranked articles to reasoning output and return final result from here
+        ## change ranked articles to reasoning output and return final result from here
         return ranked_df[:5].to_dict(orient='records')
