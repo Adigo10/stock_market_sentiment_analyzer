@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from typing import List, Dict, Tuple
@@ -42,16 +43,28 @@ class SimilarityExpansionPipeline:
             top_k: Number of top similar articles to select
             groq_api_key: Groq API key (if None, will use GROQ_API_KEY env var)
         """
+        init_start = time.time()
         print(f" Initializing Similarity Expansion Pipeline...")
+
+        # Load sentence transformer model
+        model_start = time.time()
         self.model = SentenceTransformer(model_name)
+        model_time = time.time() - model_start
+        print(f"  Model loading time: {model_time:.3f}s")
+
         self.similarity_threshold = similarity_threshold
         self.top_k = top_k
 
         # Initialize Groq client
+        groq_start = time.time()
         api_key = os.getenv("GROQ_API_KEY")
         self.groq_client = Groq(api_key=api_key)
+        groq_time = time.time() - groq_start
+        print(f"   Groq client init time: {groq_time:.3f}s")
 
-        print(f" Loaded model: {model_name}")
+        init_time = time.time() - init_start
+        print(f" Pipeline initialized in {init_time:.3f}s")
+        print(f"   Model: {model_name}")
         print(f"   Similarity threshold: {similarity_threshold}")
         print(f"   Top-K: {top_k}")
         if self.groq_client:
@@ -61,10 +74,15 @@ class SimilarityExpansionPipeline:
 
     def load_input(self, input_file: str) -> List[Dict]:
         """Load articles from JSON file."""
+        load_start = time.time()
         print(f"\n Loading input file: {input_file}")
+
         with open(input_file, "r", encoding="utf-8") as f:
             articles = json.load(f)
-        print(f" Loaded {len(articles)} articles")
+
+        load_time = time.time() - load_start
+        print(f"   File loading time: {load_time:.3f}s")
+        print(f"   Loaded {len(articles)} articles")
         return articles
 
     @staticmethod
@@ -101,19 +119,26 @@ class SimilarityExpansionPipeline:
         Returns:
             Tuple of (top_5_articles, remaining_articles)
         """
+        separate_start = time.time()
         print(
             f"\n Separating articles: taking top 5 by rank_score, rest as remaining..."
         )
 
+        # Sort articles by rank_score
+        sort_start = time.time()
         sorted_all = sorted(
             articles, key=lambda x: x.get("rank_score", 0.0), reverse=True
         )
+        sort_time = time.time() - sort_start
+        print(f"   Sorting time: {sort_time:.3f}s")
 
         top_5 = sorted_all[:5]
         remaining = sorted_all[5:]
 
-        print(f" Top 5 articles: {len(top_5)}")
-        print(f" Remaining articles: {len(remaining)}")
+        separate_time = time.time() - separate_start
+        print(f"  Total separation time: {separate_time:.3f}s")
+        print(f"  Top 5 articles: {len(top_5)}")
+        print(f"  Remaining articles: {len(remaining)}")
 
         print(f"\n Top 5 Articles (by rank_score):")
         for article in top_5:
@@ -135,7 +160,12 @@ class SimilarityExpansionPipeline:
         Returns:
             Combined summary string
         """
+        summary_start = time.time()
+        print(f"\n Generating summary using Groq API...")
+
         try:
+            # Prepare article contents
+            prep_start = time.time()
             article_contents = []
             for i, article in enumerate(articles[:5], 1):
                 headline = self._get_headline(article)
@@ -146,6 +176,9 @@ class SimilarityExpansionPipeline:
                 article_contents.append(article_content)
 
             combined_content = "\n\n".join(article_contents)
+            prep_time = time.time() - prep_start
+            print(f"  Content preparation time: {prep_time:.3f}s")
+            print(f"  Combined content length: {len(combined_content)} characters")
 
             prompt = f"""Please create a comprehensive summary of the following top 5 news articles. Focus on the key themes, important developments, and main points that connect these articles. 
             The summary should be concise but capture the essential information that would be useful for finding similar articles.
@@ -153,6 +186,7 @@ class SimilarityExpansionPipeline:
             Please provide a summary in 3-4 sentences that captures the main themes and key information from these articles."""
 
             # Call Groq API
+            api_start = time.time()
             response = self.groq_client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model="openai/gpt-oss-20b",
@@ -162,15 +196,21 @@ class SimilarityExpansionPipeline:
                 reasoning_effort="medium",
                 stream=False,
                 stop=None,
-                tools=[{"type": "browser_search"}],
             )
+            api_time = time.time() - api_start
+            print(f"   ⏱️  Groq API call time: {api_time:.3f}s")
 
             summary = response.choices[0].message.content.strip()
-            print(f"   Generated Groq summary: \n{summary}")
+
+            total_time = time.time() - summary_start
+            print(f"   Total summary generation time: {total_time:.3f}s")
+            print(f"   Generated Groq summary ({len(summary)} chars):")
+            print(f"   {summary}")
             return summary
 
         except Exception as e:
-            print(f"   Error generating Groq summary: {e}")
+            error_time = time.time() - summary_start
+            print(f"  Error generating Groq summary after {error_time:.3f}s: {e}")
             return None
 
     def compute_similarities(
@@ -186,41 +226,85 @@ class SimilarityExpansionPipeline:
         Returns:
             List of selected articles with similarity scores
         """
+        compute_start = time.time()
         print(f"\n Starting similarity computation...")
 
+        # Step 1: Generate summary
         print(
-            f"\n Step 1: Generating comprehensive summary for top {len(top_articles)} articles using Groq API..."
+            f"\n Step 1: Generating comprehensive summary for top {len(top_articles)} articles..."
         )
+        summary_start = time.time()
         combined_summary = self.generate_summary(top_articles)
-        print(f"\n Combined summary length: {len(combined_summary)} characters")
+        summary_time = time.time() - summary_start
 
+        if combined_summary:
+            print(f"  Summary generation time: {summary_time:.3f}s")
+            print(f"  Combined summary length: {len(combined_summary)} characters")
+        else:
+            print(f"  Summary generation failed after {summary_time:.3f}s")
+            return []
+
+        # Step 2: Encode texts
         print(f"\n Step 2: Encoding texts with Sentence Transformer...")
-        summary_embedding = self.model.encode(combined_summary, convert_to_tensor=True)
+        encoding_start = time.time()
 
+        # Encode summary
+        summary_encode_start = time.time()
+        summary_embedding = self.model.encode(combined_summary, convert_to_tensor=True)
+        summary_encode_time = time.time() - summary_encode_start
+        print(f"  Summary encoding time: {summary_encode_time:.3f}s")
+
+        # Prepare remaining texts
+        text_prep_start = time.time()
         remaining_texts = [self._get_text(art) for art in remaining_articles]
+        text_prep_time = time.time() - text_prep_start
+        print(f"  Text preparation time: {text_prep_time:.3f}s")
+
+        # Encode remaining articles
+        articles_encode_start = time.time()
         remaining_embeddings = self.model.encode(
             remaining_texts, convert_to_tensor=True
         )
-        print(f" Encoded {len(remaining_articles)} article embeddings")
+        articles_encode_time = time.time() - articles_encode_start
 
-        print(f"\n Step 3: Computing cosine similarity scores...")
+        encoding_time = time.time() - encoding_start
+        print(f"   Articles encoding time: {articles_encode_time:.3f}s")
+        print(f"   Total encoding time: {encoding_time:.3f}s")
+        print(f"   Encoded {len(remaining_articles)} article embeddings")
+
+        # Step 3: Compute similarities
+        print(f"\n🎯 Step 3: Computing cosine similarity scores...")
+        similarity_start = time.time()
         similarities = util.cos_sim(summary_embedding, remaining_embeddings)[0]
 
+        # Assign similarity scores
+        score_assign_start = time.time()
         for idx, article in enumerate(remaining_articles):
             article["similarity_score"] = float(similarities[idx])
+        score_assign_time = time.time() - score_assign_start
 
+        # Sort by similarity
+        sort_start = time.time()
         sorted_articles = sorted(
             remaining_articles, key=lambda x: x["similarity_score"], reverse=True
         )
+        sort_time = time.time() - sort_start
 
-        print(f" Similarity scores computed")
-        print(f"\n Top 10 similarity scores:")
+        similarity_time = time.time() - similarity_start
+        print(f"   Similarity computation time: {similarity_time:.3f}s")
+        print(f"   Score assignment time: {score_assign_time:.3f}s")
+        print(f"   Sorting time: {sort_time:.3f}s")
+        print(f"   Similarity scores computed")
+
+        print(f"\n📊 Top 10 similarity scores:")
         for i, art in enumerate(sorted_articles[:10]):
             print(
-                f"   {i+1}. Article {art.get('id','?')}: {art.get('similarity_score',0.0):.4f}"
+                f"   {i+1:2d}. Article {art.get('id','?'):>6}: {art.get('similarity_score',0.0):.4f}"
             )
 
+        # Step 4: Select articles
         print(f"\n Step 4: Selecting articles...")
+        selection_start = time.time()
         print(
             f"   Target: Top {self.top_k} + any above {self.similarity_threshold} threshold"
         )
@@ -238,12 +322,17 @@ class SimilarityExpansionPipeline:
                 )
 
         selected.extend(additional)
+        selection_time = time.time() - selection_start
+
+        compute_time = time.time() - compute_start
+        print(f"    Selection time: {selection_time:.3f}s")
+        print(f"    Total computation time: {compute_time:.3f}s")
 
         print(f"\n Selected {len(selected)} articles:")
         print(
-            f"   - Top {min(self.top_k, len(sorted_articles))}: {min(self.top_k, len(sorted_articles))} articles"
+            f"    Top {min(self.top_k, len(sorted_articles))}: {min(self.top_k, len(sorted_articles))} articles"
         )
-        print(f"   - Above threshold: {len(additional)} articles")
+        print(f"   Above threshold: {len(additional)} articles")
 
         return selected
 
@@ -258,10 +347,17 @@ class SimilarityExpansionPipeline:
             selected_articles: Selected similar articles
             output_file: Output JSON file path
         """
+        save_start = time.time()
         print(f"\n Combining and saving results...")
 
+        # Combine articles
+        combine_start = time.time()
         final_articles = top_articles + selected_articles
+        combine_time = time.time() - combine_start
+        print(f"   Article combination time: {combine_time:.3f}s")
 
+        # Deduplicate by ID
+        dedup_start = time.time()
         seen_ids = set()
         unique_articles = []
         for article in final_articles:
@@ -269,15 +365,25 @@ class SimilarityExpansionPipeline:
             if art_id not in seen_ids:
                 unique_articles.append(article)
                 seen_ids.add(art_id)
+        dedup_time = time.time() - dedup_start
+        print(f"  Deduplication time: {dedup_time:.3f}s")
+        print(f"  Removed {len(final_articles) - len(unique_articles)} duplicates")
 
+        # Save to file
+        file_start = time.time()
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(unique_articles, f, indent=2, ensure_ascii=False)
+        file_time = time.time() - file_start
 
-        print(f" Saved {len(unique_articles)} articles to {output_file}")
-        print(f"\n Final composition:")
-        print(f"   - Top 5 (with rank_score): {len(top_articles)}")
-        print(f"   - Selected similar articles: {len(selected_articles)}")
-        print(f"   - Total: {len(unique_articles)}")
+        save_time = time.time() - save_start
+        print(f"   File writing time: {file_time:.3f}s")
+        print(f"   Total save time: {save_time:.3f}s")
+        print(f"   Saved {len(unique_articles)} articles to {output_file}")
+
+        print(f"\nFinal composition:")
+        print(f"   Top 5 (with rank_score): {len(top_articles)}")
+        print(f"   Selected similar articles: {len(selected_articles)}")
+        print(f"   Total unique articles: {len(unique_articles)}")
 
         return unique_articles
 
@@ -292,12 +398,15 @@ class SimilarityExpansionPipeline:
         Returns:
             List of final articles
         """
-        print("=" * 70)
+        pipeline_start = time.time()
+        print("=" * 80)
         print("SIMILARITY-BASED EXPANSION PIPELINE")
-        print("=" * 70)
+        print("=" * 80)
 
+        # Load input
         articles = self.load_input(input_file)
 
+        # Separate articles
         top_5, remaining = self.separate_articles(articles)
 
         if len(top_5) == 0:
@@ -305,20 +414,35 @@ class SimilarityExpansionPipeline:
 
         if len(remaining) == 0:
             print(
-                "\n No remaining articles after top 5. Skipping similarity step and saving top 5 only."
+                f"\n No remaining articles after top 5. Skipping similarity step and saving top 5 only."
             )
             final_articles = self.combine_and_save(top_5, [], output_file)
-            print("\n" + "=" * 70)
-            print(" PIPELINE COMPLETE")
-            print("=" * 70)
+
+            pipeline_time = time.time() - pipeline_start
+            print(f"\n" + "=" * 80)
+            print(f" PIPELINE COMPLETE")
+            print(f" Total pipeline time: {pipeline_time:.3f}s")
+            print("=" * 80)
             return final_articles
 
+        # Compute similarities and select articles
         selected = self.compute_similarities(top_5, remaining)
 
+        # Combine and save results
         final_articles = self.combine_and_save(top_5, selected, output_file)
 
-        print("\n" + "=" * 70)
-        print(" PIPELINE COMPLETE")
-        print("=" * 70)
+        # Pipeline completion summary
+        pipeline_time = time.time() - pipeline_start
+        print(f"\n" + "=" * 80)
+        print(f" PIPELINE COMPLETE")
+        print(f" Total pipeline time: {pipeline_time:.3f}s")
+        print(f"Performance Summary:")
+        print(f"  Input articles: {len(articles)}")
+        print(f"  Top articles: {len(top_5)}")
+        print(f"  Remaining articles: {len(remaining)}")
+        print(f"  Selected similar: {len(selected)}")
+        print(f"  Final output: {len(final_articles)}")
+        print(f"  Articles per second: {len(articles)/pipeline_time:.1f}")
+        print("=" * 80)
 
         return final_articles

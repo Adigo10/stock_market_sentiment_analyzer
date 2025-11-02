@@ -23,7 +23,7 @@ class FinancialNewsFetcher:
 
     BASE_URL = "https://finnhub.io/api/v1"
 
-    def __init__(self, api_key: Optional[str] = None, timeout: int = 10):
+    def __init__(self, api_key: Optional[str] = None, timeout: int = 60):  # Increased to 60 seconds for development
         api_key = api_key or os.getenv("FINNHUB_API_KEY")
         if not api_key:
             raise ValueError("Finnhub API key not provided. Set FINNHUB_API_KEY in the environment or pass api_key to the constructor.")

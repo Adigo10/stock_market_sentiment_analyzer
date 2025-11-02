@@ -168,10 +168,10 @@ def main() -> None:
         description="Fetch AI company news via DeepSeek API and generate sentiment lines"
     )
     parser.add_argument(
-        "--n", 
-        type=int, 
-        default=10, 
-        help="Number of news items to fetch per API call (default: 10)"
+        "--n",
+        type=int,
+        default=10,
+        help="Number of news items to fetch per API call (default: 10)",
     )
     parser.add_argument(
         "--out",
@@ -184,13 +184,13 @@ def main() -> None:
         type=str,
         nargs="+",
         default=None,
-        help="Optional list of companies to focus on (overrides default list)"
+        help="Optional list of companies to focus on (overrides default list)",
     )
     parser.add_argument(
         "--total",
         type=int,
         default=None,
-        help="Total number of rows to generate (will make multiple API calls if needed)"
+        help="Total number of rows to generate (will make multiple API calls if needed)",
     )
     args = parser.parse_args()
 
@@ -211,7 +211,7 @@ def main() -> None:
 
     # Check if file exists to determine if we need to write header
     file_exists = os.path.exists(args.out)
-    
+
     # Write header if file doesn't exist
     if not file_exists:
         with open(args.out, "w", encoding="utf-8", newline="") as f:
@@ -224,18 +224,20 @@ def main() -> None:
     # Determine total rows to generate
     total_rows = args.total if args.total else args.n
     items_per_call = args.n
-    
+
     # Fetch news and sentiment (make multiple calls if needed)
     total_saved = 0
     remaining = total_rows
     call_count = 0
-    
+
     while remaining > 0:
         call_count += 1
         batch_size = min(remaining, items_per_call)
-        
-        print(f"[Call {call_count}] Fetching {batch_size} items (Total progress: {total_saved}/{total_rows})...")
-        
+
+        print(
+            f"[Call {call_count}] Fetching {batch_size} items (Total progress: {total_saved}/{total_rows})..."
+        )
+
         try:
             rows = fetch_news_and_sentiment(api_key, companies, batch_size)
             if rows:
@@ -244,7 +246,7 @@ def main() -> None:
                     writer = csv.writer(f)
                     for source_name, article_summary, sentiment in rows:
                         writer.writerow([source_name, article_summary, sentiment])
-                
+
                 total_saved += len(rows)
                 remaining -= len(rows)
                 print(f"  ✓ Successfully fetched and saved {len(rows)} items")
@@ -264,7 +266,9 @@ def main() -> None:
     print(f"✓ Generation complete!")
     print(f"  Total items saved: {total_saved}")
     print(f"  Output file: {args.out}")
-    print(f"  Columns: source_name (publication) | source (article summary) | sentiment (<senti>...<reason>...)")
+    print(
+        f"  Columns: source_name (publication) | source (article summary) | sentiment (<senti>...<reason>...)"
+    )
     print(f"{'='*60}")
 
 
