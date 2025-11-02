@@ -102,7 +102,7 @@ class APIHandler:
             elapsed_time = time.time() - start_time
             print(f"✓ Request completed for '{original_company_name}' | Total Latency: {elapsed_time:.3f}s")
             
-            result = self.financial_analyzer.analyze_news(data["processed_data"])
+            result = self.financial_analyzer.analyze_news(data["processed_data"], original_company_name)
 
             return FinancialNewsResponse(
                 company_name=original_company_name,
@@ -153,4 +153,11 @@ api_handler = APIHandler()
 app = api_handler.app
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Increased timeouts for development
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        timeout_keep_alive=300,  # 5 minutes
+        timeout_graceful_shutdown=30
+    )
