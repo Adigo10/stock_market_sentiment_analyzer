@@ -1,4 +1,5 @@
 fastapi==0.117.1
+groq
 nltk==3.7
 numpy>=1.25.0,<2.0.0
 openai==1.108.1
