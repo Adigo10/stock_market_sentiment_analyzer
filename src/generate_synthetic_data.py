@@ -80,8 +80,8 @@ def fetch_news_and_sentiment(
     )
 
     user_prompt = (
-        f"Search the web for the latest {count} news articles about these AI-related companies: {company_list}. "
-        f"Focus on articles that could impact stock prices (earnings, partnerships, products, layoffs, regulations, etc.). "
+        f"Search the web for the latest {count} news articles from 2025 ONLY about these AI-related companies: {company_list}. "
+        f"Focus on articles from 2025 that could impact stock prices (earnings, partnerships, products, layoffs, regulations, etc.). "
         f"For each article:\n"
         f"1. Identify the publication name in <source_name>\n"
         f"2. Read the full article and write a comprehensive 3-5 sentence summary in <article>\n"
@@ -168,10 +168,10 @@ def main() -> None:
         description="Fetch AI company news via DeepSeek API and generate sentiment lines"
     )
     parser.add_argument(
-        "--n",
-        type=int,
-        default=10,
-        help="Number of news items to fetch (default: 10, max recommended: 20)",
+        "--n", 
+        type=int, 
+        default=10, 
+        help="Number of news items to fetch per API call (default: 10)"
     )
     parser.add_argument(
         "--out",
@@ -184,7 +184,13 @@ def main() -> None:
         type=str,
         nargs="+",
         default=None,
-        help="Optional list of companies to focus on (overrides default list)",
+        help="Optional list of companies to focus on (overrides default list)"
+    )
+    parser.add_argument(
+        "--total",
+        type=int,
+        default=None,
+        help="Total number of rows to generate (will make multiple API calls if needed)"
     )
     args = parser.parse_args()
 
@@ -198,17 +204,6 @@ def main() -> None:
     # Use custom companies if provided
     companies = args.companies if args.companies else AI_COMPANIES
 
-    # Fetch news and sentiment
-    try:
-        rows = fetch_news_and_sentiment(api_key, companies, args.n)
-    except Exception as e:
-        print(f"Error fetching news: {e}")
-        return
-
-    if not rows:
-        print("No news items generated. Exiting.")
-        return
-
     # Ensure output directory exists
     out_dir = os.path.dirname(args.out)
     if out_dir and not os.path.exists(out_dir):
@@ -216,26 +211,61 @@ def main() -> None:
 
     # Check if file exists to determine if we need to write header
     file_exists = os.path.exists(args.out)
-
-    # Append to CSV file (or create new with header if doesn't exist)
-    with open(args.out, "a", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-
-        # Write header only if file is new
-        if not file_exists:
+    
+    # Write header if file doesn't exist
+    if not file_exists:
+        with open(args.out, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
             writer.writerow(["source_name", "source", "sentiment"])
-            print(f"✓ Created new file: {args.out}")
-        else:
-            print(f"✓ Appending to existing file: {args.out}")
+        print(f"✓ Created new file: {args.out}\n")
+    else:
+        print(f"✓ Appending to existing file: {args.out}\n")
 
-        # Write data rows
-        for source_name, article_summary, sentiment in rows:
-            writer.writerow([source_name, article_summary, sentiment])
+    # Determine total rows to generate
+    total_rows = args.total if args.total else args.n
+    items_per_call = args.n
+    
+    # Fetch news and sentiment (make multiple calls if needed)
+    total_saved = 0
+    remaining = total_rows
+    call_count = 0
+    
+    while remaining > 0:
+        call_count += 1
+        batch_size = min(remaining, items_per_call)
+        
+        print(f"[Call {call_count}] Fetching {batch_size} items (Total progress: {total_saved}/{total_rows})...")
+        
+        try:
+            rows = fetch_news_and_sentiment(api_key, companies, batch_size)
+            if rows:
+                # Save to CSV immediately after each successful API call
+                with open(args.out, "a", encoding="utf-8", newline="") as f:
+                    writer = csv.writer(f)
+                    for source_name, article_summary, sentiment in rows:
+                        writer.writerow([source_name, article_summary, sentiment])
+                
+                total_saved += len(rows)
+                remaining -= len(rows)
+                print(f"  ✓ Successfully fetched and saved {len(rows)} items")
+            else:
+                print(f"  ⚠ No items returned in this batch")
+                remaining -= batch_size  # Still decrement to avoid infinite loop
+        except Exception as e:
+            print(f"  ✗ Error fetching news: {e}")
+            # Continue with next batch instead of failing completely
+            remaining -= batch_size
 
-    print(f"  Added {len(rows)} news items")
-    print(
-        f"  Columns: source_name (publication) | source (article summary) | sentiment (<senti>...<reason>...)"
-    )
+    if total_saved == 0:
+        print("\nNo news items generated. Exiting.")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"✓ Generation complete!")
+    print(f"  Total items saved: {total_saved}")
+    print(f"  Output file: {args.out}")
+    print(f"  Columns: source_name (publication) | source (article summary) | sentiment (<senti>...<reason>...)")
+    print(f"{'='*60}")
 
 
 if __name__ == "__main__":
