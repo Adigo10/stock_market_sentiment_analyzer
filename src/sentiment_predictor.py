@@ -29,7 +29,7 @@ class SentimentPredictor:
             model_path = current_dir / "model" / "Flan_T5_Base"
         
         self.model_path = Path(model_path)
-        
+
         if not self.model_path.exists():
             raise FileNotFoundError(
                 f"Model directory not found: {self.model_path}\n"
@@ -40,8 +40,8 @@ class SentimentPredictor:
         load_start = time.time()
         
         # Load tokenizer and model (AutoTokenizer handles SentencePiece automatically)
-        self.tokenizer = AutoTokenizer.from_pretrained(str(self.model_path))
-        self.model = T5ForConditionalGeneration.from_pretrained(str(self.model_path))
+        self.tokenizer = AutoTokenizer.from_pretrained(str("tssrihari/Flan_T5_Base"))
+        self.model = T5ForConditionalGeneration.from_pretrained(str("tssrihari/Flan_T5_Base"))
         
         # Move model to GPU if available
         self.device = "cuda" if torch.cuda.is_available() else "cpu"

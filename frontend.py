@@ -172,8 +172,8 @@ def parse_sentiment(sentiment_text):
     if not sentiment_text:
         return "neutral", ""
     
-    sentiment_match = re.search(r'<senti>(\w+)', sentiment_text)
-    reason_match = re.search(r'<reason>(.*)', sentiment_text, re.DOTALL)
+    sentiment_match = re.search(r'Sentiment:\s(\w+)', sentiment_text)
+    reason_match = re.search(r'Reason:\s(.*)', sentiment_text, re.DOTALL)
     
     sentiment_type = sentiment_match.group(1).lower() if sentiment_match else 'neutral'
     reason = reason_match.group(1).strip() if reason_match else sentiment_text
@@ -466,7 +466,7 @@ if companies:
                         "neutral": sentiment_stats.get("neutral", 0),
                     }
                     total_phrases = sentiment_stats.get("total_keyphrases", 0)
-
+                    
                     metric_cols = step2_section.columns(4)
                     metric_cols[0].metric("Positive", sentiment_counts["positive"], delta="🟢")
                     metric_cols[1].metric("Negative", sentiment_counts["negative"], delta="🔴")
@@ -479,6 +479,7 @@ if companies:
                             sent_type, reason = parse_sentiment(
                                 art.get("predicted_sentiment", "")
                             )
+                           
                             sentiment_timeline.append(
                                 {
                                     "Rank": idx,

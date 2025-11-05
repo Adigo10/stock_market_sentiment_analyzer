@@ -303,9 +303,24 @@ class APIHandler:
             for article in result:
                 # Parse sentiment
                 pred_sent = article.get('predicted_sentiment', '')
-                if 'Good' in pred_sent or 'positive' in pred_sent.lower():
+                # Split by the first occurrence of "Reason:"
+                parts = pred_sent.split("Reason:", 1)
+
+                # Extract sentiment (remove "Sentiment:" prefix and clean up)
+                sentiment = parts[0].replace("Sentiment:", "").strip().rstrip('.')
+
+                # Extract reason
+                reason = parts[1].strip() if len(parts) > 1 else ""
+
+                # Create dictionary
+                sent_dict = {
+                    "sentiment": sentiment,
+                    "reason": reason
+                }
+                print(sent_dict)
+                if 'Good' in sent_dict["sentiment"]:
                     sentiment_stats['positive'] += 1
-                elif 'Bad' in pred_sent or 'negative' in pred_sent.lower():
+                elif 'Bad' in sent_dict["sentiment"]:
                     sentiment_stats['negative'] += 1
                 else:
                     sentiment_stats['neutral'] += 1
