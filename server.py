@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import sys
 import os
 import uvicorn
@@ -27,6 +28,19 @@ class FinancialNewsResponse(BaseModel):
     result: List[Dict[str, Any]]  # List of ranked articles
     status: str
 
+class RankedArticlesResponse(BaseModel):
+    company_name: str
+    articles: List[Dict[str, Any]]
+    count: int
+    status: str
+
+class EnrichedArticlesResponse(BaseModel):
+    company_name: str
+    articles: List[Dict[str, Any]]
+    count: int
+    status: str
+    sentiment_stats: Optional[Dict[str, Any]] = None
+
 class APIHandler:
     def __init__(self):
         self.app = FastAPI(
@@ -48,6 +62,15 @@ class APIHandler:
         print("💾 Initializing cache manager...")
         self.cache = CacheManager()  # In-memory cache
         
+        # Add CORS middleware
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # Allow all origins in development
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        
         self._setup_routes()
         
         print("\n🤖 Initializing AI Analysis Pipeline...")
@@ -65,7 +88,14 @@ class APIHandler:
         print("="*80 + "\n")
     
     def _setup_routes(self):
+        # Main comprehensive endpoint (backward compatible)
         self.app.post("/analyze-company", response_model=FinancialNewsResponse)(self.analyze_company)
+        
+        # Split endpoints for granular control
+        self.app.post("/api/fetch-and-rank", response_model=RankedArticlesResponse)(self.fetch_and_rank)
+        self.app.post("/api/enrich-with-ai", response_model=EnrichedArticlesResponse)(self.enrich_with_ai)
+        
+        # Utility endpoints
         self.app.get("/")(self.root)
         self.app.get("/companies")(self.get_companies)
         self.app.get("/health")(self.health_check)
@@ -191,6 +221,132 @@ class APIHandler:
             
             raise HTTPException(status_code=500, detail=detail)
     
+    async def fetch_and_rank(self, request: FinancialNewsRequest):
+        """
+        Step 1 & 2: Fetch news, preprocess, and rank articles.
+        Returns top 15 ranked articles without AI enrichment.
+        """
+        start_time = time.time()
+        
+        try:
+            # Validate company name
+            original_company_name = self._validate_company(request.company_name)
+            
+            # Get data (cached or fetch & preprocess)
+            data = await self._get_company_data(original_company_name, 250)
+            print(f"📰 Fetched {len(data['processed_data']['unique_news'])} articles for '{original_company_name}'")
+            
+            # Run ranking and similarity expansion
+            print(f"\n{'='*80}")
+            print(f"STEP 1-3: RANKING & SIMILARITY EXPANSION FOR '{original_company_name}'")
+            print(f"{'='*80}")
+            
+            import pandas as pd
+            from src.rule_based_ranker import FinancialNewsRanker
+            
+            # Rank articles
+            ranker = FinancialNewsRanker(decay_rate=0.1, target_company=original_company_name)
+            df = pd.DataFrame(data["processed_data"]["unique_news"])
+            ranked_df = ranker.rank_articles(df, top_n=None)
+            
+            # Get top 15
+            top_articles = ranked_df[:15].to_dict(orient="records")
+            
+            elapsed_time = time.time() - start_time
+            print(f"\n✓ Ranking completed in {elapsed_time:.3f}s")
+            print(f"  Top articles: {len(top_articles)}\n")
+            
+            return RankedArticlesResponse(
+                company_name=original_company_name,
+                articles=top_articles,
+                count=len(top_articles),
+                status="success"
+            )
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            print(f"✗ Fetch and rank failed: {str(e)} | Latency: {elapsed_time:.3f}s")
+            raise HTTPException(status_code=500, detail=f"Fetch and rank failed: {str(e)}")
+    
+    async def enrich_with_ai(self, request: FinancialNewsRequest):
+        """
+        Complete pipeline: Fetch, rank, and enrich with AI (sentiment + keyphrases).
+        This is the main endpoint that should be used by the frontend.
+        """
+        start_time = time.time()
+        
+        try:
+            # Validate company name
+            original_company_name = self._validate_company(request.company_name)
+            
+            # Get data (cached or fetch & preprocess)
+            data = await self._get_company_data(original_company_name, 250)
+            print(f"📰 Processing {len(data['processed_data']['unique_news'])} articles for '{original_company_name}'")
+            
+            # Run complete analysis pipeline
+            print(f"\n{'='*80}")
+            print(f"RUNNING COMPLETE AI ANALYSIS FOR '{original_company_name}'")
+            print(f"{'='*80}")
+            
+            result = self.financial_analyzer.analyze_news(data["processed_data"], original_company_name)
+            
+            # Calculate sentiment statistics
+            sentiment_stats = {
+                'positive': 0,
+                'negative': 0,
+                'neutral': 0,
+                'total_keyphrases': 0
+            }
+            
+            for article in result:
+                # Parse sentiment
+                pred_sent = article.get('predicted_sentiment', '')
+                if 'Good' in pred_sent or 'positive' in pred_sent.lower():
+                    sentiment_stats['positive'] += 1
+                elif 'Bad' in pred_sent or 'negative' in pred_sent.lower():
+                    sentiment_stats['negative'] += 1
+                else:
+                    sentiment_stats['neutral'] += 1
+                
+                # Count keyphrases
+                ka = article.get('keyphrase_analysis', {})
+                summary = ka.get('summary', {})
+                sentiment_stats['total_keyphrases'] += summary.get('total_phrases', 0)
+            
+            elapsed_time = time.time() - start_time
+            print(f"\n{'='*80}")
+            print(f"✓ COMPLETE ANALYSIS DONE FOR '{original_company_name}'")
+            print(f"  Total Latency: {elapsed_time:.3f}s")
+            print(f"  Articles: {len(result)}")
+            print(f"  Positive: {sentiment_stats['positive']}, Negative: {sentiment_stats['negative']}, Neutral: {sentiment_stats['neutral']}")
+            print(f"{'='*80}\n")
+            
+            return EnrichedArticlesResponse(
+                company_name=original_company_name,
+                articles=result,
+                count=len(result),
+                status="success",
+                sentiment_stats=sentiment_stats
+            )
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            error_type = type(e).__name__
+            error_msg = str(e)
+            
+            print(f"\n{'='*80}")
+            print(f"✗ AI ENRICHMENT FAILED FOR '{request.company_name}'")
+            print(f"  Error Type: {error_type}")
+            print(f"  Error Message: {error_msg}")
+            print(f"  Latency: {elapsed_time:.3f}s")
+            print(f"{'='*80}\n")
+            
+            raise HTTPException(status_code=500, detail=f"AI enrichment failed: {error_msg}")
+    
     async def _process_data_async(self, raw_data_json: str):
         ## Implement NLP processing logic here
         processed_data = self.processor.process_json_file(
@@ -227,9 +383,15 @@ class APIHandler:
                 "Keyphrase extraction & analysis"
             ],
             "endpoints": {
-                "POST /analyze-company": "Analyze company news with complete AI pipeline",
+                "POST /api/enrich-with-ai": "⭐ RECOMMENDED: Complete AI analysis (fetch + rank + sentiment + keyphrases)",
+                "POST /api/fetch-and-rank": "Fetch and rank articles only (no AI)",
+                "POST /analyze-company": "Legacy: Complete analysis (backward compatible)",
                 "GET /companies": "List supported companies",
                 "GET /health": "Health check status"
+            },
+            "usage": {
+                "recommended": "Use /api/enrich-with-ai for complete analysis with all features",
+                "quick": "Use /api/fetch-and-rank for quick article list without AI processing"
             }
         }
     
