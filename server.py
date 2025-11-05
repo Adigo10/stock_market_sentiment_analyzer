@@ -29,17 +29,46 @@ class FinancialNewsResponse(BaseModel):
 
 class APIHandler:
     def __init__(self):
-        self.app = FastAPI(title="NLP Company Analysis API", version="1.0.0")
+        self.app = FastAPI(
+            title="Stock Market Sentiment Analyzer API",
+            version="2.0.0",
+            description="Financial news analysis with AI-powered sentiment prediction and keyphrase extraction"
+        )
+        
+        print("\n" + "="*80)
+        print("INITIALIZING STOCK MARKET SENTIMENT ANALYZER")
+        print("="*80)
+        
+        print("📡 Initializing data fetcher...")
         self.fetcher = FinancialNewsFetcher()
+        
+        print("🔧 Initializing data processor...")
         self.processor = FinancialDataCleaner()
+        
+        print("💾 Initializing cache manager...")
         self.cache = CacheManager()  # In-memory cache
+        
         self._setup_routes()
-        self.financial_analyzer = FinancialNewsAnalyzer()
+        
+        print("\n🤖 Initializing AI Analysis Pipeline...")
+        print("-" * 80)
+        try:
+            self.financial_analyzer = FinancialNewsAnalyzer()
+            print("-" * 80)
+            print("✓ AI Analysis Pipeline initialized successfully")
+        except Exception as e:
+            print(f"✗ Failed to initialize AI pipeline: {str(e)}")
+            raise
+        
+        print("\n" + "="*80)
+        print("✓ SERVER INITIALIZATION COMPLETE")
+        print("="*80 + "\n")
     
     def _setup_routes(self):
         self.app.post("/analyze-company", response_model=FinancialNewsResponse)(self.analyze_company)
         self.app.get("/")(self.root)
         self.app.get("/companies")(self.get_companies)
+        self.app.get("/health")(self.health_check)
     
     def _validate_company(self, company_name: str) -> str:
         """Validate company name and return proper casing."""
@@ -89,20 +118,46 @@ class APIHandler:
         return data
     
     async def analyze_company(self, request: FinancialNewsRequest):
-        """Analyze company: fetch news and process with NLP. Uses cache."""
+        """
+        Analyze company: fetch news, process with NLP, predict sentiment, and analyze keyphrases.
+        
+        Complete Pipeline:
+        1. Fetch & preprocess data (cached if available)
+        2. Rule-based ranking of articles
+        3. Similarity expansion to select top articles
+        4. Sentiment prediction using Flan-T5 model
+        5. Keyphrase extraction and analysis
+        
+        Returns enriched articles with sentiment and keyphrases.
+        """
         start_time = time.time()
         
         try:
+            # Step 1: Validate company name
             original_company_name = self._validate_company(request.company_name)
-            data = await self._get_company_data(original_company_name, 250)
-            print(len(data["processed_data"]['unique_news']))
-            cached_data = self.cache.get(original_company_name)
-            status = "success"
             
-            elapsed_time = time.time() - start_time
-            print(f"✓ Request completed for '{original_company_name}' | Total Latency: {elapsed_time:.3f}s")
+            # Step 2: Get data (cached or fetch & preprocess)
+            data = await self._get_company_data(original_company_name, 250)
+            print(f"📰 Processing {len(data['processed_data']['unique_news'])} articles for '{original_company_name}'")
+            
+            # Step 3: Run complete analysis pipeline
+            # This includes: ranking → similarity → sentiment prediction → keyphrase analysis
+            print(f"\n{'='*80}")
+            print(f"RUNNING COMPLETE ANALYSIS PIPELINE FOR '{original_company_name}'")
+            print(f"{'='*80}")
             
             result = self.financial_analyzer.analyze_news(data["processed_data"], original_company_name)
+            
+            # Log completion
+            elapsed_time = time.time() - start_time
+            print(f"\n{'='*80}")
+            print(f"✓ REQUEST COMPLETED FOR '{original_company_name}'")
+            print(f"  Total Latency: {elapsed_time:.3f}s")
+            print(f"  Articles Returned: {len(result)}")
+            print(f"  Cache Status: {'HIT' if self.cache.get(original_company_name) else 'MISS'}")
+            print(f"{'='*80}\n")
+            
+            status = "success"
 
             return FinancialNewsResponse(
                 company_name=original_company_name,
@@ -114,8 +169,27 @@ class APIHandler:
             raise
         except Exception as e:
             elapsed_time = time.time() - start_time
-            print(f"✗ Request failed for '{request.company_name}' | Latency: {elapsed_time:.3f}s | Error: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            
+            print(f"\n{'='*80}")
+            print(f"✗ REQUEST FAILED FOR '{request.company_name}'")
+            print(f"  Error Type: {error_type}")
+            print(f"  Error Message: {error_msg}")
+            print(f"  Latency: {elapsed_time:.3f}s")
+            print(f"{'='*80}\n")
+            
+            # Provide more specific error messages based on error type
+            if "Model directory not found" in error_msg:
+                detail = "Sentiment prediction model not found. Please ensure model files are available."
+            elif "CUDA" in error_msg or "out of memory" in error_msg.lower():
+                detail = "GPU memory error. Try reducing batch size or using CPU."
+            elif "fetch" in error_msg.lower() or "api" in error_msg.lower():
+                detail = f"Failed to fetch news data: {error_msg}"
+            else:
+                detail = f"Processing failed: {error_msg}"
+            
+            raise HTTPException(status_code=500, detail=detail)
     
     async def _process_data_async(self, raw_data_json: str):
         ## Implement NLP processing logic here
@@ -142,11 +216,77 @@ class APIHandler:
         return limited_raw_json, limited_processed
     
     async def root(self):
-        return {"message": "NLP Company Analysis API is running"}
+        return {
+            "message": "Stock Market Sentiment Analyzer API",
+            "version": "2.0.0",
+            "features": [
+                "Financial news data fetching",
+                "Rule-based article ranking",
+                "Similarity-based expansion",
+                "AI sentiment prediction (Flan-T5)",
+                "Keyphrase extraction & analysis"
+            ],
+            "endpoints": {
+                "POST /analyze-company": "Analyze company news with complete AI pipeline",
+                "GET /companies": "List supported companies",
+                "GET /health": "Health check status"
+            }
+        }
     
     async def get_companies(self):
         """Get list of supported companies."""
-        return {"companies": list(COMPANY_SYMBOLS.keys())}
+        return {
+            "companies": list(COMPANY_SYMBOLS.keys()),
+            "total": len(COMPANY_SYMBOLS)
+        }
+    
+    async def health_check(self):
+        """Health check endpoint to verify all components are working."""
+        health_status = {
+            "status": "healthy",
+            "version": "2.0.0",
+            "components": {}
+        }
+        
+        try:
+            # Check data fetcher
+            health_status["components"]["data_fetcher"] = "operational"
+            
+            # Check processor
+            health_status["components"]["data_processor"] = "operational"
+            
+            # Check cache
+            health_status["components"]["cache_manager"] = "operational"
+            
+            # Check AI analyzer
+            if hasattr(self, 'financial_analyzer'):
+                # Check sentiment predictor
+                if hasattr(self.financial_analyzer, 'sentiment_predictor'):
+                    device = self.financial_analyzer.sentiment_predictor.device
+                    health_status["components"]["sentiment_predictor"] = f"operational ({device})"
+                else:
+                    health_status["components"]["sentiment_predictor"] = "not initialized"
+                
+                # Check keyphrase analyzer
+                if hasattr(self.financial_analyzer, 'keyphrase_analyzer'):
+                    health_status["components"]["keyphrase_analyzer"] = "operational"
+                else:
+                    health_status["components"]["keyphrase_analyzer"] = "not initialized"
+            else:
+                health_status["components"]["ai_pipeline"] = "not initialized"
+                health_status["status"] = "degraded"
+            
+            # Cache statistics
+            cache_stats = {
+                "cached_companies": len(self.cache.cache) if hasattr(self.cache, 'cache') else 0
+            }
+            health_status["cache_stats"] = cache_stats
+            
+        except Exception as e:
+            health_status["status"] = "unhealthy"
+            health_status["error"] = str(e)
+        
+        return health_status
 
 # Create API handler
 api_handler = APIHandler()

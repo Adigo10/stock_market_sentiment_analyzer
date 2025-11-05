@@ -26,16 +26,21 @@ try:
         print("⚠️ NLTK POS tagging or NER components not available.")
         pass
     
-    # Download required data
+    # Download required data (including new punkt_tab format)
     try:
         nltk.download('punkt', quiet=True)
+        nltk.download('punkt_tab', quiet=True)
         nltk.download('stopwords', quiet=True)
         nltk.download('averaged_perceptron_tagger', quiet=True)
+        nltk.download('averaged_perceptron_tagger_eng', quiet=True)
         nltk.download('maxent_ne_chunker', quiet=True)
+        nltk.download('maxent_ne_chunker_tab', quiet=True)
         nltk.download('words', quiet=True)
-    except:
+    except Exception as e:
+        print(f"⚠️ Could not download some NLTK data: {e}")
         pass
-except:
+except Exception as e:
+    print(f"⚠️ NLTK not available: {e}")
     pass
 
 
