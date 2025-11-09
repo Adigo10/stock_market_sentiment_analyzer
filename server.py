@@ -34,6 +34,7 @@ class RankedArticlesResponse(BaseModel):
     articles: List[Dict[str, Any]]
     count: int
     status: str
+    pipeline_metrics: Optional[Dict[str, Any]] = None
 
 class EnrichedArticlesResponse(BaseModel):
     company_name: str
@@ -224,8 +225,8 @@ class APIHandler:
     
     async def fetch_and_rank(self, request: FinancialNewsRequest):
         """
-        Step 1 & 2: Fetch news, preprocess, and rank articles.
-        Returns top 15 ranked articles without AI enrichment.
+        Step 1 & 2: Fetch news, preprocess, rank articles, and run similarity expansion.
+        Returns ranked articles with detailed pipeline metrics.
         """
         start_time = time.time()
         
@@ -239,7 +240,7 @@ class APIHandler:
             
             # Run ranking and similarity expansion
             print(f"\n{'='*80}")
-            print(f"STEP 1-3: RANKING & SIMILARITY EXPANSION FOR '{original_company_name}'")
+            print(f"STEP 1: RANKING & SIMILARITY EXPANSION FOR '{original_company_name}'")
             print(f"{'='*80}")
             
             import pandas as pd
@@ -250,18 +251,60 @@ class APIHandler:
             df = pd.DataFrame(data["processed_data"]["unique_news"])
             ranked_df = ranker.rank_articles(df, top_n=None)
             
-            # Get top 15
-            top_articles = ranked_df[:15].to_dict(orient="records")
+            # Run similarity expansion on all ranked articles
+            articles_dict = ranked_df.to_dict(orient="records")
+            
+            # Run similarity expansion pipeline
+            if self.financial_analyzer.similarity_pipeline:
+                import tempfile
+                import json
+                
+                # Save ranked articles to temp file
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp_input:
+                    json.dump(articles_dict, temp_input)
+                    temp_input_path = temp_input.name
+                
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp_output:
+                    temp_output_path = temp_output.name
+                
+                try:
+                    # Run similarity pipeline
+                    pipeline_result = self.financial_analyzer.similarity_pipeline.run(
+                        temp_input_path, temp_output_path
+                    )
+                    
+                    # Extract articles and metrics
+                    if isinstance(pipeline_result, dict):
+                        final_articles = pipeline_result.get("articles", [])
+                        pipeline_metrics = pipeline_result.get("pipeline_metrics", {})
+                    else:
+                        final_articles = pipeline_result
+                        pipeline_metrics = {}
+                    
+                    # Clean up temp files
+                    import os
+                    os.unlink(temp_input_path)
+                    os.unlink(temp_output_path)
+                    
+                except Exception as e:
+                    print(f"⚠️  Similarity pipeline failed: {e}. Falling back to top 15.")
+                    final_articles = articles_dict[:15]
+                    pipeline_metrics = {}
+            else:
+                # Fallback if pipeline not available
+                final_articles = articles_dict[:15]
+                pipeline_metrics = {}
             
             elapsed_time = time.time() - start_time
-            print(f"\n✓ Ranking completed in {elapsed_time:.3f}s")
-            print(f"  Top articles: {len(top_articles)}\n")
+            print(f"\n✓ Ranking and similarity expansion completed in {elapsed_time:.3f}s")
+            print(f"  Final articles: {len(final_articles)}\n")
             
             return RankedArticlesResponse(
                 company_name=original_company_name,
-                articles=top_articles,
-                count=len(top_articles),
-                status="success"
+                articles=final_articles,
+                count=len(final_articles),
+                status="success",
+                pipeline_metrics=pipeline_metrics
             )
         
         except HTTPException:

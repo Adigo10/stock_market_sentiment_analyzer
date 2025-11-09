@@ -198,14 +198,14 @@ def get_sentiment_badge(sentiment_type):
     """Return HTML for sentiment badge"""
     sentiment_type = sentiment_type.lower()
     style_map = {
-        'positive': 'display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#1bcfb4 0%,#0baaa1 100%);',
-        'negative': 'display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#f5576c 0%,#f093fb 100%);',
-        'neutral': 'display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#2f2f2f;background:linear-gradient(135deg,#fdfbfb 0%,#ebedee 100%);border:1px solid #d1d5db;'
+        "positive": "display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#1bcfb4 0%,#0baaa1 100%);",
+        "negative": "display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#f5576c 0%,#f093fb 100%);",
+        "neutral": "display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#2f2f2f;background:linear-gradient(135deg,#fdfbfb 0%,#ebedee 100%);border:1px solid #d1d5db;",
     }
     label_map = {
-        'positive': '🟢 Positive',
-        'negative': '🔴 Negative',
-        'neutral': '⚪ Neutral'
+        "positive": "🟢 Positive",
+        "negative": "🔴 Negative",
+        "neutral": "⚪ Neutral",
     }
 
     key = 'neutral'
@@ -223,24 +223,24 @@ def display_keyphrases(keyphrases, max_display=5):
     """Display keyphrases as colored badges"""
     if not keyphrases:
         return ""
-    
+
     html = ""
     style_map = {
-        'positive': 'display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#d4edda;color:#155724;border:1px solid #c3e6cb;',
-        'negative': 'display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb;',
-        'neutral': 'display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#e2e3e5;color:#383d41;border:1px solid #d6d8db;'
+        "positive": "display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#d4edda;color:#155724;border:1px solid #c3e6cb;",
+        "negative": "display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb;",
+        "neutral": "display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#e2e3e5;color:#383d41;border:1px solid #d6d8db;",
     }
-    for phrase_type in ['positive', 'negative', 'neutral']:
+    for phrase_type in ["positive", "negative", "neutral"]:
         phrases = keyphrases.get(phrase_type, [])[:max_display]
         if phrases:
             for phrase_data in phrases:
-                phrase = phrase_data.get('phrase', '')
-                confidence = phrase_data.get('confidence', 0)
+                phrase = phrase_data.get("phrase", "")
+                confidence = phrase_data.get("confidence", 0)
                 html += (
                     f'<span style="{style_map[phrase_type]}" '
                     f'title="Confidence: {confidence:.2f}">{phrase}</span>'
                 )
-    
+
     return html
 
 
@@ -276,7 +276,14 @@ def extract_article_date(article, default="-"):
     if not article:
         return default
 
-    for key in ("publish_date", "published_date", "date", "datetime", "timestamp", "time"):
+    for key in (
+        "publish_date",
+        "published_date",
+        "date",
+        "datetime",
+        "timestamp",
+        "time",
+    ):
         value = article.get(key)
         if value not in (None, "", "N/A"):
             return format_article_date(value, default)
@@ -295,22 +302,22 @@ def display_article_card(article, index):
     rank_score = article.get('rank_score', 0)
     
     # Parse sentiment
-    predicted_sentiment = article.get('predicted_sentiment', '')
+    predicted_sentiment = article.get("predicted_sentiment", "")
     sentiment_type, sentiment_reason = parse_sentiment(predicted_sentiment)
     sentiment_badge = get_sentiment_badge(sentiment_type)
-    
+
     # Get keyphrases
-    keyphrase_analysis = article.get('keyphrase_analysis', {})
-    keyphrases = keyphrase_analysis.get('keyphrases', {})
+    keyphrase_analysis = article.get("keyphrase_analysis", {})
+    keyphrases = keyphrase_analysis.get("keyphrases", {})
     keyphrase_html = display_keyphrases(keyphrases, max_display=8)
-    
+
     # Format date
     try:
         if publish_date:
-            dt = datetime.fromisoformat(publish_date.replace('Z', '+00:00'))
-            formatted_date = dt.strftime('%B %d, %Y')
+            dt = datetime.fromisoformat(publish_date.replace("Z", "+00:00"))
+            formatted_date = dt.strftime("%B %d, %Y")
         else:
-            formatted_date = 'Date unknown'
+            formatted_date = "Date unknown"
     except:
         formatted_date = str(publish_date) if publish_date else 'Date unknown'
     
@@ -362,7 +369,7 @@ def display_article_card(article, index):
             <p style="margin:0;color:#1e293b;font-size:0.98rem;line-height:1.7;">{sentiment_reason}</p>
         </div>
         """
-    
+
     if keyphrase_html:
         card_html += f"""
         <div style="margin-bottom:18px;">
@@ -370,8 +377,8 @@ def display_article_card(article, index):
             <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">{keyphrase_html}</div>
         </div>
         """
-    
-    if url and url != '#':
+
+    if url and url != "#":
         card_html += f"""
         <a href="{url}" target="_blank" style="display:inline-flex;align-items:center;gap:10px;color:#4338ca;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:12px;background:rgba(102,126,234,0.1);transition:all 0.2s ease;border:1px solid rgba(102,126,234,0.2);">
             <span>🔗 Read Full Article</span>
@@ -431,7 +438,9 @@ if companies:
 
             try:
                 # Step 1: Fetch & Rank
-                status_placeholder.info("Step 1/3 · Fetching and ranking latest financial news...")
+                status_placeholder.info(
+                    "Step 1/3 · Fetching and ranking latest financial news..."
+                )
                 progress_bar.progress(5)
 
                 fetch_response = requests.post(
@@ -539,16 +548,18 @@ if companies:
                             sent_type, reason = parse_sentiment(
                                 art.get("predicted_sentiment", "")
                             )
-                           
+
                             sentiment_timeline.append(
                                 {
                                     "Rank": idx,
                                     "Sentiment": sent_type.title(),
                                     "Headline": art.get("headline")
                                     or art.get("title", "Unknown"),
-                                    "Reason": reason[:120] + "..."
-                                    if len(reason) > 120
-                                    else reason,
+                                    "Reason": (
+                                        reason[:120] + "..."
+                                        if len(reason) > 120
+                                        else reason
+                                    ),
                                 }
                             )
                         st.dataframe(pd.DataFrame(sentiment_timeline))
@@ -566,10 +577,7 @@ if companies:
                 neutral_phrases = Counter()
 
                 for article in result_data:
-                    kp = (
-                        article.get("keyphrase_analysis", {})
-                        .get("keyphrases", {})
-                    )
+                    kp = article.get("keyphrase_analysis", {}).get("keyphrases", {})
                     for item in kp.get("positive", []):
                         positive_phrases[item.get("phrase", "")] += item.get(
                             "confidence", 0
@@ -660,6 +668,17 @@ if companies:
                     st.warning(
                         "No enriched articles available from the AI analysis."
                     )
+                    safe_company = re.sub(
+                        r"[^a-z0-9]+", "_", selected_company.lower()
+                    ).strip("_")
+                    st.download_button(
+                        "📥 Download All Articles (JSON)",
+                        data=download_payload.encode("utf-8"),
+                        file_name=f"{safe_company or 'analysis'}_ai_articles.json",
+                        mime="application/json",
+                    )
+                else:
+                    st.warning("No enriched articles available from the AI analysis.")
 
             except requests.exceptions.Timeout:
                 status_placeholder.error(
