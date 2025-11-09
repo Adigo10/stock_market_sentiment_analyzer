@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, Download, AlertCircle } from 'lucide-react';
 import { apiService } from '@/services/api';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './Button';
 import { Card } from './Card';
 import { LoadingSpinner, ProgressBar } from './LoadingSpinner';
@@ -10,18 +11,26 @@ import { StepCard } from './StepCard';
 import { DataTable } from './DataTable';
 import { ArticleCard } from './ArticleCard';
 import { ThemeToggle } from './ThemeToggle';
+import { CompanyDropdown } from './CompanyDropdown';
 import type { Article, SentimentStats, KeyphraseCounter } from '@/types';
 import { parseSentiment, formatTableDate, truncateText, downloadJSON, getSafeCompanyName, normalizeSentimentType } from '@/utils/helpers';
 
 type AnalysisStatus = 'idle' | 'step1' | 'step2' | 'step3' | 'completed' | 'error';
 
+type SortOption = 'default' | 'positive' | 'negative' | 'neutral' | 'rank-high' | 'rank-low' | 'recent' | 'oldest';
+type FilterOption = 'all' | 'positive' | 'negative' | 'neutral';
+
 export const Dashboard: React.FC = () => {
+  const { theme } = useTheme();
   const [companies, setCompanies] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [status, setStatus] = useState<AnalysisStatus>('idle');
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [filterOption, setFilterOption] = useState<FilterOption>('all');
 
   // Step data
   const [rankedArticles, setRankedArticles] = useState<Article[]>([]);
@@ -80,16 +89,99 @@ export const Dashboard: React.FC = () => {
     };
   };
 
+  const getFilteredArticles = (articles: Article[]): Article[] => {
+    if (filterOption === 'all') return articles;
+
+    return articles.filter((article) => {
+      const sentiment = parseSentiment(article.predicted_sentiment || '').type;
+      const normalizedSentiment = normalizeSentimentType(sentiment);
+      return normalizedSentiment === filterOption;
+    });
+  };
+
+  const getSortedArticles = (articles: Article[]): Article[] => {
+    if (sortOption === 'default') return articles;
+
+    const articlesCopy = [...articles];
+
+    switch (sortOption) {
+      case 'positive':
+        return articlesCopy.sort((a, b) => {
+          const sentA = parseSentiment(a.predicted_sentiment || '').type;
+          const sentB = parseSentiment(b.predicted_sentiment || '').type;
+          if (normalizeSentimentType(sentA) === 'positive' && normalizeSentimentType(sentB) !== 'positive') return -1;
+          if (normalizeSentimentType(sentA) !== 'positive' && normalizeSentimentType(sentB) === 'positive') return 1;
+          return 0;
+        });
+      
+      case 'negative':
+        return articlesCopy.sort((a, b) => {
+          const sentA = parseSentiment(a.predicted_sentiment || '').type;
+          const sentB = parseSentiment(b.predicted_sentiment || '').type;
+          if (normalizeSentimentType(sentA) === 'negative' && normalizeSentimentType(sentB) !== 'negative') return -1;
+          if (normalizeSentimentType(sentA) !== 'negative' && normalizeSentimentType(sentB) === 'negative') return 1;
+          return 0;
+        });
+      
+      case 'neutral':
+        return articlesCopy.sort((a, b) => {
+          const sentA = parseSentiment(a.predicted_sentiment || '').type;
+          const sentB = parseSentiment(b.predicted_sentiment || '').type;
+          if (normalizeSentimentType(sentA) === 'neutral' && normalizeSentimentType(sentB) !== 'neutral') return -1;
+          if (normalizeSentimentType(sentA) !== 'neutral' && normalizeSentimentType(sentB) === 'neutral') return 1;
+          return 0;
+        });
+      
+      case 'rank-high':
+        return articlesCopy.sort((a, b) => (b.rank_score || 0) - (a.rank_score || 0));
+      
+      case 'rank-low':
+        return articlesCopy.sort((a, b) => (a.rank_score || 0) - (b.rank_score || 0));
+      
+      case 'recent':
+        return articlesCopy.sort((a, b) => {
+          const dateA = new Date(a.datetime || a.publish_date || a.published_date || a.date || 0);
+          const dateB = new Date(b.datetime || b.publish_date || b.published_date || b.date || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+      
+      case 'oldest':
+        return articlesCopy.sort((a, b) => {
+          const dateA = new Date(a.datetime || a.publish_date || a.published_date || a.date || 0);
+          const dateB = new Date(b.datetime || b.publish_date || b.published_date || b.date || 0);
+          return dateA.getTime() - dateB.getTime();
+        });
+      
+      default:
+        return articlesCopy;
+    }
+  };
+
+  const getProcessedArticles = (articles: Article[]): Article[] => {
+    // First filter, then sort
+    const filtered = getFilteredArticles(articles);
+    return getSortedArticles(filtered);
+  };
+
   const handleAnalyze = async () => {
     if (!selectedCompany) return;
 
-    setStatus('step1');
-    setProgress(5);
+    // Trigger header animation first
+    setHasInteracted(true);
     setError(null);
     setRankedArticles([]);
     setEnrichedArticles([]);
     setSentimentStats(null);
     setAggregatedKeyphrases(null);
+    setSortOption('default');
+    setFilterOption('all');
+
+    // Wait for header animation to complete (500ms) before starting the process
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    // Now start the actual analysis process
+    setStatus('step1');
+    setProgress(5);
 
     try {
       // Step 1: Fetch and Rank
@@ -150,25 +242,10 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="text-blue-600 dark:text-blue-400" size={32} />
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                  AI Stock Market Sentiment Analyzer
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Powered by Flan-T5 AI Model • Real-time News Analysis • Keyphrase Extraction
-                </p>
-              </div>
-            </div>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      {/* Theme Toggle - Fixed in top-right */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -189,35 +266,73 @@ export const Dashboard: React.FC = () => {
           </Card>
         ) : (
           <>
-            {/* Company Selection */}
-            <Card className="p-6 mb-8">
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Select Company to Analyze
-              </label>
-              <div className="flex gap-4 items-center">
-                <select
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
-                  disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* Centered Title and Company Selection */}
+            <div className={`flex flex-col items-center ${hasInteracted ? 'mb-8' : 'min-h-[70vh] justify-center'}`}>
+              {/* Animated Header Container */}
+              <motion.div
+                initial={false}
+                animate={hasInteracted ? {
+                  backgroundColor: theme === 'dark' ? 'rgb(31 41 55 / 1)' : 'rgb(255 255 255 / 1)',
+                  borderRadius: '1rem',
+                  padding: '1.5rem',
+                  boxShadow: theme === 'dark' 
+                    ? '0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3)' 
+                    : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                } : {
+                  backgroundColor: 'transparent',
+                  borderRadius: '0rem',
+                  padding: '0rem',
+                  boxShadow: '0 0 0 0 rgb(0 0 0 / 0)',
+                }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="w-full max-w-4xl"
+              >
+                <motion.div
+                  layout
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  className={`flex items-center gap-3 ${hasInteracted ? 'mb-6' : 'mb-8 justify-center'}`}
                 >
-                  {companies.map((company) => (
-                    <option key={company} value={company}>
-                      {company}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={!selectedCompany || (status !== 'idle' && status !== 'completed' && status !== 'error')}
-                  isLoading={status !== 'idle' && status !== 'completed' && status !== 'error'}
-                  size="lg"
-                  className="px-8 whitespace-nowrap"
+                  <TrendingUp className="text-blue-600 dark:text-blue-400" size={32} />
+                  <div className={hasInteracted ? '' : 'text-center'}>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                      AI Stock Market Sentiment Analyzer
+                    </h1>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Powered by Flan-T5 AI Model • Real-time News Analysis • Keyphrase Extraction
+                    </p>
+                  </div>
+                </motion.div>
+
+                {/* Company Selection */}
+                <motion.div
+                  layout
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  className="w-full"
                 >
-                  {status !== 'idle' && status !== 'completed' && status !== 'error' ? 'Analyzing...' : '🚀 Analyze with AI'}
-                </Button>
-              </div>
-            </Card>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Select Company to Analyze
+                  </label>
+                  <div className="flex gap-4 items-center">
+                    <CompanyDropdown
+                      value={selectedCompany}
+                      onChange={setSelectedCompany}
+                      options={companies}
+                      disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleAnalyze}
+                      disabled={!selectedCompany || (status !== 'idle' && status !== 'completed' && status !== 'error')}
+                      isLoading={status !== 'idle' && status !== 'completed' && status !== 'error'}
+                      size="lg"
+                      className="px-8 whitespace-nowrap"
+                    >
+                      {status !== 'idle' && status !== 'completed' && status !== 'error' ? 'Analyzing...' : '🚀 Analyze with AI'}
+                    </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
 
             {/* Progress Bar */}
             {status !== 'idle' && status !== 'completed' && (
@@ -475,26 +590,116 @@ export const Dashboard: React.FC = () => {
                       transition={{ delay: 0.3 }}
                     >
                       <Card className="p-6">
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                           <div>
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                               📰 AI-Enriched Articles
                             </h2>
                             <p className="text-gray-600 dark:text-gray-400">
-                              Showing {Math.min(enrichedArticles.length, 15)} of {enrichedArticles.length} analyzed articles
+                              Showing {Math.min(getProcessedArticles(enrichedArticles).length, 15)} of {getProcessedArticles(enrichedArticles).length} {filterOption !== 'all' ? `${filterOption} ` : ''}articles
                             </p>
                           </div>
-                          <Button onClick={handleDownload} variant="outline" className="gap-2">
-                            <Download size={18} />
-                            Download JSON
-                          </Button>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <Button onClick={handleDownload} variant="outline" className="gap-2 whitespace-nowrap">
+                              <Download size={18} />
+                              Download JSON
+                            </Button>
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                          {enrichedArticles.slice(0, 15).map((article, idx) => (
-                            <ArticleCard key={idx} article={article} index={idx} />
-                          ))}
+                        {/* Filter and Sort Controls */}
+                        <div className="mb-6 space-y-4">
+                          {/* Filter Buttons */}
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                              Filter:
+                            </label>
+                            <div className="flex gap-2 flex-wrap">
+                              <button
+                                onClick={() => setFilterOption('all')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                  filterOption === 'all'
+                                    ? 'bg-blue-600 text-white shadow-md'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                }`}
+                              >
+                                All ({enrichedArticles.length})
+                              </button>
+                              <button
+                                onClick={() => setFilterOption('positive')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                  filterOption === 'positive'
+                                    ? 'bg-green-600 text-white shadow-md'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                }`}
+                              >
+                                🟢 Positive ({getFilteredArticles(enrichedArticles).length > 0 && filterOption === 'positive' ? getFilteredArticles(enrichedArticles).length : enrichedArticles.filter(a => normalizeSentimentType(parseSentiment(a.predicted_sentiment || '').type) === 'positive').length})
+                              </button>
+                              <button
+                                onClick={() => setFilterOption('negative')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                  filterOption === 'negative'
+                                    ? 'bg-red-600 text-white shadow-md'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                }`}
+                              >
+                                🔴 Negative ({enrichedArticles.filter(a => normalizeSentimentType(parseSentiment(a.predicted_sentiment || '').type) === 'negative').length})
+                              </button>
+                              <button
+                                onClick={() => setFilterOption('neutral')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                  filterOption === 'neutral'
+                                    ? 'bg-gray-600 text-white shadow-md'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                }`}
+                              >
+                                ⚪ Neutral ({enrichedArticles.filter(a => normalizeSentimentType(parseSentiment(a.predicted_sentiment || '').type) === 'neutral').length})
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Sort Dropdown */}
+                          <div className="flex items-center gap-3">
+                            <label htmlFor="sort-select" className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                              Sort by:
+                            </label>
+                            <select
+                              id="sort-select"
+                              value={sortOption}
+                              onChange={(e) => setSortOption(e.target.value as SortOption)}
+                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="default">Default</option>
+                              <option value="positive">Positive First</option>
+                              <option value="negative">Negative First</option>
+                              <option value="neutral">Neutral First</option>
+                              <option value="rank-high">Highest Rank</option>
+                              <option value="rank-low">Lowest Rank</option>
+                              <option value="recent">Most Recent</option>
+                              <option value="oldest">Oldest First</option>
+                            </select>
+                          </div>
                         </div>
+
+                        {getProcessedArticles(enrichedArticles).length === 0 ? (
+                          <div className="text-center py-12">
+                            <p className="text-gray-500 dark:text-gray-400 text-lg">
+                              No articles found with the current filter selection.
+                            </p>
+                            <button
+                              onClick={() => setFilterOption('all')}
+                              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              Show All Articles
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {getProcessedArticles(enrichedArticles).slice(0, 15).map((article, idx) => (
+                              <ArticleCard key={idx} article={article} index={idx} />
+                            ))}
+                          </div>
+                        )}
                       </Card>
                     </motion.div>
                   )}

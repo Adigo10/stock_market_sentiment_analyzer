@@ -55,7 +55,7 @@ export function normalizeSentimentType(type: SentimentType): 'positive' | 'negat
 }
 
 export function formatArticleDate(article: Article): string {
-  const dateValue = article.publish_date || article.published_date || article.date;
+  const dateValue = article.datetime || article.publish_date || article.published_date || article.date;
   
   if (!dateValue) return 'Date unknown';
 
@@ -74,7 +74,7 @@ export function formatArticleDate(article: Article): string {
 }
 
 export function formatTableDate(article: Article): string {
-  const dateValue = article.publish_date || article.published_date || article.date;
+  const dateValue = article.datetime || article.publish_date || article.published_date || article.date;
   
   if (!dateValue) return '-';
 

@@ -8,6 +8,7 @@ export interface Article {
   publish_date?: string;
   published_date?: string;
   date?: string;
+  datetime?: string;
   rank_score?: number;
   predicted_sentiment?: string;
   keyphrase_analysis?: KeyphraseAnalysis;

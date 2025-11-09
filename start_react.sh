@@ -57,7 +57,6 @@ echo
 echo "Press any key to open the frontend in your browser..."
 read -n 1 -s
 
-# Open browser (works on macOS)
 open http://localhost:3000
 
 echo
