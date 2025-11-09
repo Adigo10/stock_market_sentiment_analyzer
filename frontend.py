@@ -628,6 +628,13 @@ if companies:
                 status_placeholder.success("All steps completed successfully! 🎉")
 
                 # Final article cards - displayed at the bottom with 2-column grid
+                # Prepare payload for download regardless of whether there are articles
+                download_payload = json.dumps(
+                    result_data,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+
                 if result_data:
                     st.markdown("---")  # Separator
                     st.markdown("### 📰 AI-Enriched Articles")
@@ -652,11 +659,6 @@ if companies:
                                     st_html(card_html_list[card_idx], height=650, width=None, scrolling=True)
 
                     st.markdown("<br>", unsafe_allow_html=True)
-                    download_payload = json.dumps(
-                        result_data,
-                        indent=2,
-                        ensure_ascii=False,
-                    )
                     safe_company = re.sub(r"[^a-z0-9]+", "_", selected_company.lower()).strip("_")
                     st.download_button(
                         "📥 Download All Articles (JSON)",
@@ -677,8 +679,6 @@ if companies:
                         file_name=f"{safe_company or 'analysis'}_ai_articles.json",
                         mime="application/json",
                     )
-                else:
-                    st.warning("No enriched articles available from the AI analysis.")
 
             except requests.exceptions.Timeout:
                 status_placeholder.error(
