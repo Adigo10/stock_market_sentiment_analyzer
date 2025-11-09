@@ -168,15 +168,28 @@ def get_companies():
 
 # Helper functions
 def parse_sentiment(sentiment_text):
-    """Parse sentiment from format: <senti>Good<reason>Explanation"""
+    """Parse sentiment from format: Sentiment: Good/Bad/Neutral Reason: Explanation"""
     if not sentiment_text:
         return "neutral", ""
     
-    sentiment_match = re.search(r'Sentiment:\s(\w+)', sentiment_text)
-    reason_match = re.search(r'Reason:\s(.*)', sentiment_text, re.DOTALL)
+    sentiment_match = re.search(r'Sentiment:\s*(\w+)', sentiment_text, re.IGNORECASE)
+    reason_match = re.search(r'Reason:\s*(.*)', sentiment_text, re.IGNORECASE | re.DOTALL)
     
     sentiment_type = sentiment_match.group(1).lower() if sentiment_match else 'neutral'
-    reason = reason_match.group(1).strip() if reason_match else sentiment_text
+    
+    # Extract reason properly - if found, use it; otherwise return empty string
+    if reason_match:
+        reason = reason_match.group(1).strip()
+    else:
+        # If no "Reason:" found, check if there's text after sentiment
+        if sentiment_match:
+            # Get everything after the sentiment declaration
+            remaining_text = sentiment_text[sentiment_match.end():].strip()
+            # Remove common separators at the start
+            reason = re.sub(r'^[:\-\.\,\s]+', '', remaining_text).strip()
+        else:
+            # Fallback: use the entire text if no structure found
+            reason = sentiment_text.strip()
     
     return sentiment_type, reason
 
@@ -196,10 +209,12 @@ def get_sentiment_badge(sentiment_type):
     }
 
     key = 'neutral'
-    if sentiment_type in ('good', 'positive'):
+    if sentiment_type in ('good', 'positive', 'bullish'):
         key = 'positive'
-    elif sentiment_type in ('bad', 'negative'):
+    elif sentiment_type in ('bad', 'negative', 'bearish'):
         key = 'negative'
+    elif sentiment_type in ('neutral', 'okay', 'mixed', 'uncertain'):
+        key = 'neutral'
 
     return f'<span style="{style_map[key]}">{label_map[key]}</span>'
 

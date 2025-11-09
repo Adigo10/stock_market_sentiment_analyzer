@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import sys
 import os
+import re
 import uvicorn
 import time
 from pathlib import Path
@@ -301,26 +302,41 @@ class APIHandler:
             }
             
             for article in result:
-                # Parse sentiment
+                # Parse sentiment with improved robustness
                 pred_sent = article.get('predicted_sentiment', '')
-                # Split by the first occurrence of "Reason:"
-                parts = pred_sent.split("Reason:", 1)
-
-                # Extract sentiment (remove "Sentiment:" prefix and clean up)
-                sentiment = parts[0].replace("Sentiment:", "").strip().rstrip('.')
-
+                
+                # Use regex for more robust parsing
+                sentiment_match = re.search(r'Sentiment:\s*(\w+)', pred_sent, re.IGNORECASE)
+                reason_match = re.search(r'Reason:\s*(.*)', pred_sent, re.IGNORECASE | re.DOTALL)
+                
+                # Extract sentiment
+                if sentiment_match:
+                    sentiment = sentiment_match.group(1).strip()
+                else:
+                    # Fallback: try simple split
+                    parts = pred_sent.split("Reason:", 1)
+                    sentiment = parts[0].replace("Sentiment:", "").strip().rstrip('.')
+                
                 # Extract reason
-                reason = parts[1].strip() if len(parts) > 1 else ""
-
+                if reason_match:
+                    reason = reason_match.group(1).strip()
+                else:
+                    # Fallback: try simple split
+                    parts = pred_sent.split("Reason:", 1)
+                    reason = parts[1].strip() if len(parts) > 1 else ""
+                
                 # Create dictionary
                 sent_dict = {
                     "sentiment": sentiment,
                     "reason": reason
                 }
                 print(sent_dict)
-                if 'Good' in sent_dict["sentiment"]:
+                
+                # Count sentiments with more variations
+                sentiment_lower = sentiment.lower()
+                if sentiment_lower in ['good', 'positive', 'bullish']:
                     sentiment_stats['positive'] += 1
-                elif 'Bad' in sent_dict["sentiment"]:
+                elif sentiment_lower in ['bad', 'negative', 'bearish']:
                     sentiment_stats['negative'] += 1
                 else:
                     sentiment_stats['neutral'] += 1

@@ -585,17 +585,45 @@ class KeyphraseAnalyzer:
         
         Args:
             source: Source text (news article, announcement, etc.)
-            sentiment: Sentiment string in format "<senti>Sentiment<reason>Reason text"
+            sentiment: Sentiment string in format "Sentiment: Good/Bad/Neutral Reason: description"
+                      or legacy format "<senti>Sentiment<reason>Reason text"
             
         Returns:
             Dictionary with keyphrase analysis results
         """
-        # Parse sentiment
-        sentiment_match = re.search(r'<senti>(\w+)', sentiment)
-        reason_match = re.search(r'<reason>(.*)', sentiment, re.DOTALL)
+        # Parse sentiment - handle both new and legacy formats
+        sentiment_type = 'neutral'
+        reason_text = ''
         
-        sentiment_type = sentiment_match.group(1).lower() if sentiment_match else 'neutral'
-        reason_text = reason_match.group(1).strip() if reason_match else ''
+        # Try new format first: "Sentiment: Good Reason: text"
+        sentiment_match = re.search(r'Sentiment:\s*(\w+)', sentiment, re.IGNORECASE)
+        reason_match = re.search(r'Reason:\s*(.*)', sentiment, re.IGNORECASE | re.DOTALL)
+        
+        if sentiment_match:
+            sentiment_type = sentiment_match.group(1).lower()
+            if reason_match:
+                reason_text = reason_match.group(1).strip()
+            else:
+                # Get text after sentiment if no "Reason:" found
+                remaining_text = sentiment[sentiment_match.end():].strip()
+                reason_text = re.sub(r'^[:\-\.\,\s]+', '', remaining_text).strip()
+        else:
+            # Try legacy format: "<senti>Good<reason>text"
+            legacy_sentiment_match = re.search(r'<senti>(\w+)', sentiment)
+            legacy_reason_match = re.search(r'<reason>(.*)', sentiment, re.DOTALL)
+            
+            if legacy_sentiment_match:
+                sentiment_type = legacy_sentiment_match.group(1).lower()
+            if legacy_reason_match:
+                reason_text = legacy_reason_match.group(1).strip()
+        
+        # Normalize sentiment types
+        if sentiment_type in ('good', 'positive', 'bullish'):
+            sentiment_type = 'positive'
+        elif sentiment_type in ('bad', 'negative', 'bearish'):
+            sentiment_type = 'negative'
+        else:
+            sentiment_type = 'neutral'
         
         # Combine source and reason for comprehensive analysis
         combined_text = f"{source} {reason_text}"
