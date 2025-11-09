@@ -12,6 +12,8 @@ import { DataTable } from './DataTable';
 import { ArticleCard } from './ArticleCard';
 import { ThemeToggle } from './ThemeToggle';
 import { CompanyDropdown } from './CompanyDropdown';
+import { SortDropdown } from './SortDropdown';
+import { PipelineDetails } from './PipelineDetails';
 import type { Article, SentimentStats, KeyphraseCounter } from '@/types';
 import { parseSentiment, formatTableDate, truncateText, downloadJSON, getSafeCompanyName, normalizeSentimentType } from '@/utils/helpers';
 
@@ -41,6 +43,7 @@ export const Dashboard: React.FC = () => {
     negative: [string, number][];
     neutral: [string, number][];
   } | null>(null);
+  const [pipelineMetrics, setPipelineMetrics] = useState<any>(null);
 
   useEffect(() => {
     loadCompanies();
@@ -173,6 +176,7 @@ export const Dashboard: React.FC = () => {
     setEnrichedArticles([]);
     setSentimentStats(null);
     setAggregatedKeyphrases(null);
+    setPipelineMetrics(null);
     setSortOption('default');
     setFilterOption('all');
 
@@ -188,6 +192,7 @@ export const Dashboard: React.FC = () => {
       setStatusMessage('Fetching and ranking latest financial news...');
       const fetchResponse = await apiService.fetchAndRank(selectedCompany);
       setRankedArticles(fetchResponse.articles);
+      setPipelineMetrics(fetchResponse.pipeline_metrics);
       setProgress(25);
 
       // Step 2: Enrich with AI
@@ -292,10 +297,10 @@ export const Dashboard: React.FC = () => {
                   transition={{ duration: 0.5, ease: "easeInOut" }}
                   className={`flex items-center gap-3 ${hasInteracted ? 'mb-6' : 'mb-8 justify-center'}`}
                 >
-                  <TrendingUp className="text-blue-600 dark:text-blue-400" size={32} />
+
                   <div className={hasInteracted ? '' : 'text-center'}>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                      AI Stock Market Sentiment Analyzer
+                      SentiStock
                     </h1>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                       Powered by Flan-T5 AI Model • Real-time News Analysis • Keyphrase Extraction
@@ -413,20 +418,33 @@ export const Dashboard: React.FC = () => {
                         </div>
                       }
                       details={
-                        <DataTable
-                          columns={[
-                            { key: 'headline', label: 'Headline', render: (val) => truncateText(val, 60) },
-                            { key: 'source', label: 'Source' },
-                            { key: 'rank_score', label: 'Rank Score', render: (val) => val.toFixed(3) },
-                            { key: 'publish_date', label: 'Date' },
-                          ]}
-                          data={rankedArticles.slice(0, 15).map((art) => ({
-                            headline: art.headline || art.title || 'Unknown',
-                            source: art.source || 'Unknown',
-                            rank_score: art.rank_score || 0,
-                            publish_date: formatTableDate(art),
-                          }))}
-                        />
+                        <div className="space-y-6">
+                          {/* Pipeline Details */}
+                          {pipelineMetrics && (
+                            <PipelineDetails metrics={pipelineMetrics} />
+                          )}
+                          
+                          {/* Article Data Table */}
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
+                              Selected Articles
+                            </h3>
+                            <DataTable
+                              columns={[
+                                { key: 'headline', label: 'Headline', render: (val) => truncateText(val, 60) },
+                                { key: 'source', label: 'Source' },
+                                { key: 'rank_score', label: 'Rank Score', render: (val) => val.toFixed(3) },
+                                { key: 'publish_date', label: 'Date' },
+                              ]}
+                              data={rankedArticles.slice(0, 15).map((art) => ({
+                                headline: art.headline || art.title || 'Unknown',
+                                source: art.source || 'Unknown',
+                                rank_score: art.rank_score || 0,
+                                publish_date: formatTableDate(art),
+                              }))}
+                            />
+                          </div>
+                        </div>
                       }
                     />
                   )}
@@ -660,24 +678,24 @@ export const Dashboard: React.FC = () => {
 
                           {/* Sort Dropdown */}
                           <div className="flex items-center gap-3">
-                            <label htmlFor="sort-select" className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                               Sort by:
                             </label>
-                            <select
-                              id="sort-select"
+                            <SortDropdown
                               value={sortOption}
-                              onChange={(e) => setSortOption(e.target.value as SortOption)}
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                              <option value="default">Default</option>
-                              <option value="positive">Positive First</option>
-                              <option value="negative">Negative First</option>
-                              <option value="neutral">Neutral First</option>
-                              <option value="rank-high">Highest Rank</option>
-                              <option value="rank-low">Lowest Rank</option>
-                              <option value="recent">Most Recent</option>
-                              <option value="oldest">Oldest First</option>
-                            </select>
+                              onChange={(value) => setSortOption(value as SortOption)}
+                              options={[
+                                { value: 'default', label: 'Default', icon: '📋' },
+                                { value: 'positive', label: 'Positive First', icon: '🟢' },
+                                { value: 'negative', label: 'Negative First', icon: '🔴' },
+                                { value: 'neutral', label: 'Neutral First', icon: '⚪' },
+                                { value: 'rank-high', label: 'Highest Rank', icon: '⭐' },
+                                { value: 'rank-low', label: 'Lowest Rank', icon: '📉' },
+                                { value: 'recent', label: 'Most Recent', icon: '🕐' },
+                                { value: 'oldest', label: 'Oldest First', icon: '📅' },
+                              ]}
+                              className="w-full md:w-64"
+                            />
                           </div>
                         </div>
 

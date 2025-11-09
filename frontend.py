@@ -171,13 +171,13 @@ def parse_sentiment(sentiment_text):
     """Parse sentiment from format: <senti>Good<reason>Explanation"""
     if not sentiment_text:
         return "neutral", ""
-    
-    sentiment_match = re.search(r'Sentiment:\s(\w+)', sentiment_text)
-    reason_match = re.search(r'Reason:\s(.*)', sentiment_text, re.DOTALL)
-    
-    sentiment_type = sentiment_match.group(1).lower() if sentiment_match else 'neutral'
+
+    sentiment_match = re.search(r"Sentiment:\s(\w+)", sentiment_text)
+    reason_match = re.search(r"Reason:\s(.*)", sentiment_text, re.DOTALL)
+
+    sentiment_type = sentiment_match.group(1).lower() if sentiment_match else "neutral"
     reason = reason_match.group(1).strip() if reason_match else sentiment_text
-    
+
     return sentiment_type, reason
 
 
@@ -185,21 +185,21 @@ def get_sentiment_badge(sentiment_type):
     """Return HTML for sentiment badge"""
     sentiment_type = sentiment_type.lower()
     style_map = {
-        'positive': 'display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#1bcfb4 0%,#0baaa1 100%);',
-        'negative': 'display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#f5576c 0%,#f093fb 100%);',
-        'neutral': 'display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#2f2f2f;background:linear-gradient(135deg,#fdfbfb 0%,#ebedee 100%);border:1px solid #d1d5db;'
+        "positive": "display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#1bcfb4 0%,#0baaa1 100%);",
+        "negative": "display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#fff;background:linear-gradient(135deg,#f5576c 0%,#f093fb 100%);",
+        "neutral": "display:inline-block;padding:6px 18px;border-radius:999px;font-weight:600;color:#2f2f2f;background:linear-gradient(135deg,#fdfbfb 0%,#ebedee 100%);border:1px solid #d1d5db;",
     }
     label_map = {
-        'positive': '🟢 Positive',
-        'negative': '🔴 Negative',
-        'neutral': '⚪ Neutral'
+        "positive": "🟢 Positive",
+        "negative": "🔴 Negative",
+        "neutral": "⚪ Neutral",
     }
 
-    key = 'neutral'
-    if sentiment_type in ('good', 'positive'):
-        key = 'positive'
-    elif sentiment_type in ('bad', 'negative'):
-        key = 'negative'
+    key = "neutral"
+    if sentiment_type in ("good", "positive"):
+        key = "positive"
+    elif sentiment_type in ("bad", "negative"):
+        key = "negative"
 
     return f'<span style="{style_map[key]}">{label_map[key]}</span>'
 
@@ -208,24 +208,24 @@ def display_keyphrases(keyphrases, max_display=5):
     """Display keyphrases as colored badges"""
     if not keyphrases:
         return ""
-    
+
     html = ""
     style_map = {
-        'positive': 'display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#d4edda;color:#155724;border:1px solid #c3e6cb;',
-        'negative': 'display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb;',
-        'neutral': 'display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#e2e3e5;color:#383d41;border:1px solid #d6d8db;'
+        "positive": "display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#d4edda;color:#155724;border:1px solid #c3e6cb;",
+        "negative": "display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb;",
+        "neutral": "display:inline-block;padding:4px 10px;margin:3px;border-radius:12px;font-size:0.85rem;font-weight:500;background-color:#e2e3e5;color:#383d41;border:1px solid #d6d8db;",
     }
-    for phrase_type in ['positive', 'negative', 'neutral']:
+    for phrase_type in ["positive", "negative", "neutral"]:
         phrases = keyphrases.get(phrase_type, [])[:max_display]
         if phrases:
             for phrase_data in phrases:
-                phrase = phrase_data.get('phrase', '')
-                confidence = phrase_data.get('confidence', 0)
+                phrase = phrase_data.get("phrase", "")
+                confidence = phrase_data.get("confidence", 0)
                 html += (
                     f'<span style="{style_map[phrase_type]}" '
                     f'title="Confidence: {confidence:.2f}">{phrase}</span>'
                 )
-    
+
     return html
 
 
@@ -261,7 +261,14 @@ def extract_article_date(article, default="-"):
     if not article:
         return default
 
-    for key in ("publish_date", "published_date", "date", "datetime", "timestamp", "time"):
+    for key in (
+        "publish_date",
+        "published_date",
+        "date",
+        "datetime",
+        "timestamp",
+        "time",
+    ):
         value = article.get(key)
         if value not in (None, "", "N/A"):
             return format_article_date(value, default)
@@ -269,80 +276,125 @@ def extract_article_date(article, default="-"):
 
 
 def display_article_card(article, index):
-    """Display a single article as a beautiful card"""
-    headline = article.get('headline', article.get('title', 'No headline'))
-    summary = article.get('summary', article.get('content', 'No summary available'))
-    url = article.get('url', '#')
-    publish_date = article.get('publish_date', '')
-    rank_score = article.get('rank_score', 0)
-    
+    """Display a single article as a beautiful card with expand/collapse functionality"""
+    headline = article.get("headline", article.get("title", "No headline"))
+    summary = article.get("summary", article.get("content", "No summary available"))
+    url = article.get("url", "#")
+
+    # Extract date from various possible fields
+    publish_date = extract_article_date(article, "")
+
+    rank_score = article.get("rank_score", 0)
+
     # Parse sentiment
-    predicted_sentiment = article.get('predicted_sentiment', '')
+    predicted_sentiment = article.get("predicted_sentiment", "")
     sentiment_type, sentiment_reason = parse_sentiment(predicted_sentiment)
     sentiment_badge = get_sentiment_badge(sentiment_type)
-    
+
     # Get keyphrases
-    keyphrase_analysis = article.get('keyphrase_analysis', {})
-    keyphrases = keyphrase_analysis.get('keyphrases', {})
+    keyphrase_analysis = article.get("keyphrase_analysis", {})
+    keyphrases = keyphrase_analysis.get("keyphrases", {})
     keyphrase_html = display_keyphrases(keyphrases, max_display=8)
-    
+
     # Format date
     try:
         if publish_date:
-            dt = datetime.fromisoformat(publish_date.replace('Z', '+00:00'))
-            formatted_date = dt.strftime('%B %d, %Y')
+            dt = datetime.fromisoformat(publish_date.replace("Z", "+00:00"))
+            formatted_date = dt.strftime("%B %d, %Y")
         else:
-            formatted_date = 'Date unknown'
+            formatted_date = "Date unknown"
     except:
-        formatted_date = str(publish_date) if publish_date else 'Date unknown'
-    
-    # Build card HTML
+        formatted_date = str(publish_date) if publish_date else "Date unknown"
+
+    # Unique ID for expand/collapse functionality
+    card_id = f"article-card-{index}"
+
+    # Truncate summary for preview
+    summary_preview = summary[:320] + "..." if len(summary) > 320 else summary
+    summary_full = summary
+
+    # Build card HTML with expand/collapse functionality
     card_html = f"""
-    <div style="background:#ffffff;border-radius:14px;padding:20px;border-left:5px solid #667eea;box-shadow:0 10px 25px -15px rgba(102,126,234,0.55);margin-bottom:24px;font-family:'Segoe UI',sans-serif;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;">
-            <h3 style="margin:0;color:#1f2937;font-size:1.3rem;font-weight:700;flex:1;">#{index}. {headline}</h3>
-            {sentiment_badge}
+    <div style="width:100%;max-width:100%;overflow:hidden;">
+    <div id="{card_id}" style="width:100%;box-sizing:border-box;background:#ffffff;border-radius:16px;padding:24px;border-left:6px solid #667eea;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);margin-bottom:20px;font-family:'Segoe UI',Tahoma,sans-serif;transition:all 0.3s ease;hover:box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:16px;">
+            <h3 style="margin:0;color:#111827;font-size:1.35rem;font-weight:700;flex:1;line-height:1.4;word-wrap:break-word;">#{index}. {headline}</h3>
+            <div style="flex-shrink:0;">{sentiment_badge}</div>
         </div>
         
-        <div style="color:#6b7280;font-size:0.95rem;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
-            <span>📅 {formatted_date}</span>
+        <div style="color:#6b7280;font-size:0.95rem;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:5px;">📅 {formatted_date}</span>
             <span style="width:4px;height:4px;background:#d1d5db;border-radius:999px;display:inline-block;"></span>
-            <span>⭐ Rank Score: {rank_score:.3f}</span>
+            <span style="display:flex;align-items:center;gap:5px;">⭐ Rank: {rank_score:.3f}</span>
         </div>
         
-        <p style="color:#4b5563;line-height:1.7;margin-bottom:18px;font-size:1rem;">
-            {summary[:320]}{'...' if len(summary) > 320 else ''}
-        </p>
+        <div id="{card_id}-summary-preview" style="color:#374151;line-height:1.8;margin-bottom:18px;font-size:1rem;text-align:justify;">
+            {summary_preview}
+        </div>
+        
+        <div id="{card_id}-summary-full" style="display:none;color:#374151;line-height:1.8;margin-bottom:18px;font-size:1rem;text-align:justify;">
+            {summary_full}
+        </div>
     """
-    
+
+    # Add expand/collapse button if summary is truncated
+    if len(summary) > 320:
+        card_html += f"""
+        <button id="{card_id}-toggle-btn" onclick="toggleExpand('{card_id}')" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:600;margin-bottom:18px;font-size:0.9rem;transition:all 0.2s ease;box-shadow:0 2px 4px rgba(102,126,234,0.3);">
+            ▼ Show More
+        </button>
+        """
+
     if sentiment_reason:
         card_html += f"""
-        <div style="background:linear-gradient(135deg,#f8fafc 0%,#eef2ff 100%);padding:16px;border-radius:10px;margin-bottom:18px;">
-            <div style="font-weight:700;color:#312e81;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+        <div style="background:linear-gradient(135deg,#f0f9ff 0%,#e0e7ff 100%);padding:18px;border-radius:12px;margin-bottom:18px;border:1px solid #c7d2fe;">
+            <div style="font-weight:700;color:#3730a3;margin-bottom:8px;display:flex;align-items:center;gap:8px;font-size:1rem;">
                 <span>🤖 AI Sentiment Analysis</span>
             </div>
-            <p style="margin:0;color:#374151;font-size:0.98rem;line-height:1.6;">{sentiment_reason[:240]}{'...' if len(sentiment_reason) > 240 else ''}</p>
+            <p style="margin:0;color:#1e293b;font-size:0.98rem;line-height:1.7;">{sentiment_reason}</p>
         </div>
         """
-    
+
     if keyphrase_html:
         card_html += f"""
         <div style="margin-bottom:18px;">
-            <div style="font-weight:600;color:#1f2937;margin-bottom:8px;">🔑 Key Phrases</div>
-            <div style="margin-top:6px;display:flex;flex-wrap:wrap;">{keyphrase_html}</div>
+            <div style="font-weight:700;color:#111827;margin-bottom:10px;font-size:1rem;display:flex;align-items:center;gap:6px;">🔑 Key Phrases</div>
+            <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">{keyphrase_html}</div>
         </div>
         """
-    
-    if url and url != '#':
+
+    if url and url != "#":
         card_html += f"""
-        <a href="{url}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;color:#4c51bf;text-decoration:none;font-weight:600;padding:10px 14px;border-radius:12px;background:rgba(102,126,234,0.08);transition:all 0.2s ease;">
+        <a href="{url}" target="_blank" style="display:inline-flex;align-items:center;gap:10px;color:#4338ca;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:12px;background:rgba(102,126,234,0.1);transition:all 0.2s ease;border:1px solid rgba(102,126,234,0.2);">
             <span>🔗 Read Full Article</span>
             <span style="font-size:1.2rem;">→</span>
         </a>
         """
-    
-    card_html += "</div>"
-    
+
+    card_html += "</div>"  # Close article card div
+    card_html += "</div>"  # Close wrapper div
+
+    # Add JavaScript for expand/collapse
+    card_html += """
+    <script>
+    function toggleExpand(cardId) {
+        const previewDiv = document.getElementById(cardId + '-summary-preview');
+        const fullDiv = document.getElementById(cardId + '-summary-full');
+        const toggleBtn = document.getElementById(cardId + '-toggle-btn');
+        
+        if (previewDiv.style.display === 'none') {
+            previewDiv.style.display = 'block';
+            fullDiv.style.display = 'none';
+            toggleBtn.innerHTML = '▼ Show More';
+        } else {
+            previewDiv.style.display = 'none';
+            fullDiv.style.display = 'block';
+            toggleBtn.innerHTML = '▲ Show Less';
+        }
+    }
+    </script>
+    """
+
     return card_html
 
 
@@ -368,11 +420,12 @@ if companies:
             progress_bar = st.progress(0)
             status_placeholder = st.empty()
             steps_container = st.container()
-            final_container = st.container()
 
             try:
                 # Step 1: Fetch & Rank
-                status_placeholder.info("Step 1/3 · Fetching and ranking latest financial news...")
+                status_placeholder.info(
+                    "Step 1/3 · Fetching and ranking latest financial news..."
+                )
                 progress_bar.progress(5)
 
                 fetch_response = requests.post(
@@ -457,20 +510,27 @@ if companies:
 
                 progress_bar.progress(75)
 
+                # Display Step 2 immediately after AI enrichment completes
+                # Use steps_container to ensure it renders immediately after Step 1
                 with steps_container:
-                    step2_section = st.container()
-                    step2_section.markdown("### ✅ Step 2 · AI Sentiment Synthesis")
+                    st.markdown("### ✅ Step 2 · AI Sentiment Synthesis")
                     sentiment_counts = {
                         "positive": sentiment_stats.get("positive", 0),
                         "negative": sentiment_stats.get("negative", 0),
                         "neutral": sentiment_stats.get("neutral", 0),
                     }
                     total_phrases = sentiment_stats.get("total_keyphrases", 0)
-                    
-                    metric_cols = step2_section.columns(4)
-                    metric_cols[0].metric("Positive", sentiment_counts["positive"], delta="🟢")
-                    metric_cols[1].metric("Negative", sentiment_counts["negative"], delta="🔴")
-                    metric_cols[2].metric("Neutral", sentiment_counts["neutral"], delta="⚪")
+
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric(
+                        "Positive", sentiment_counts["positive"], delta="🟢"
+                    )
+                    metric_cols[1].metric(
+                        "Negative", sentiment_counts["negative"], delta="🔴"
+                    )
+                    metric_cols[2].metric(
+                        "Neutral", sentiment_counts["neutral"], delta="⚪"
+                    )
                     metric_cols[3].metric("Keyphrases", total_phrases, delta="🔑")
 
                     if result_data:
@@ -479,21 +539,23 @@ if companies:
                             sent_type, reason = parse_sentiment(
                                 art.get("predicted_sentiment", "")
                             )
-                           
+
                             sentiment_timeline.append(
                                 {
                                     "Rank": idx,
                                     "Sentiment": sent_type.title(),
                                     "Headline": art.get("headline")
                                     or art.get("title", "Unknown"),
-                                    "Reason": reason[:120] + "..."
-                                    if len(reason) > 120
-                                    else reason,
+                                    "Reason": (
+                                        reason[:120] + "..."
+                                        if len(reason) > 120
+                                        else reason
+                                    ),
                                 }
                             )
-                        step2_section.dataframe(pd.DataFrame(sentiment_timeline))
+                        st.dataframe(pd.DataFrame(sentiment_timeline))
                     else:
-                        step2_section.warning("No articles available for sentiment analysis.")
+                        st.warning("No articles available for sentiment analysis.")
 
                 status_placeholder.info(
                     "Step 3/3 · Aggregating keyphrases and generating intelligence report..."
@@ -506,10 +568,7 @@ if companies:
                 neutral_phrases = Counter()
 
                 for article in result_data:
-                    kp = (
-                        article.get("keyphrase_analysis", {})
-                        .get("keyphrases", {})
-                    )
+                    kp = article.get("keyphrase_analysis", {}).get("keyphrases", {})
                     for item in kp.get("positive", []):
                         positive_phrases[item.get("phrase", "")] += item.get(
                             "confidence", 0
@@ -523,12 +582,12 @@ if companies:
                             "confidence", 0
                         )
 
+                # Display Step 3 in the same steps_container
                 with steps_container:
-                    step3_section = st.container()
-                    step3_section.markdown("### ✅ Step 3 · Keyphrase Intelligence")
+                    st.markdown("### ✅ Step 3 · Keyphrase Intelligence")
 
                     if positive_phrases or negative_phrases or neutral_phrases:
-                        phrase_cols = step3_section.columns(3)
+                        phrase_cols = st.columns(3)
 
                         if positive_phrases:
                             pos_df = pd.DataFrame(
@@ -554,50 +613,57 @@ if companies:
                             phrase_cols[2].markdown("#### ⚪ Neutral Themes")
                             phrase_cols[2].table(neu_df)
                     else:
-                        step3_section.warning("No keyphrases extracted from analyzed articles.")
+                        st.warning("No keyphrases extracted from analyzed articles.")
 
                 progress_bar.progress(100)
                 status_placeholder.success("All steps completed successfully! 🎉")
 
-                # Final article cards
+                # Final article cards - displayed at the bottom with 2-column grid
                 if result_data:
-                    with final_container:
-                        st.markdown("### 📰 AI-Enriched Articles")
-                        st.markdown(
-                            f"Showing {min(len(result_data), 15)} of {len(result_data)} analyzed articles"
-                        )
-                        st.markdown("<br>", unsafe_allow_html=True)
-
-                        articles_to_show = result_data[:15]
-                        card_html_list = [
-                            display_article_card(article, idx)
-                            for idx, article in enumerate(articles_to_show, 1)
-                        ]
-
-                        for start in range(0, len(card_html_list), 2):
-                            cols = st.columns(2)
-                            for offset in range(2):
-                                card_idx = start + offset
-                                if card_idx < len(card_html_list):
-                                    with cols[offset]:
-                                        st_html(card_html_list[card_idx], height=430, scrolling=True)
-
-                        download_payload = json.dumps(
-                            result_data,
-                            indent=2,
-                            ensure_ascii=False,
-                        )
-                        safe_company = re.sub(r"[^a-z0-9]+", "_", selected_company.lower()).strip("_")
-                        st.download_button(
-                            "� Download All Articles (JSON)",
-                            data=download_payload.encode("utf-8"),
-                            file_name=f"{safe_company or 'analysis'}_ai_articles.json",
-                            mime="application/json",
-                        )
-                else:
-                    final_container.warning(
-                        "No enriched articles available from the AI analysis."
+                    st.markdown("---")  # Separator
+                    st.markdown("### 📰 AI-Enriched Articles")
+                    st.markdown(
+                        f"<div style='color:#6b7280;font-size:1rem;margin-bottom:1.5rem;'>Showing <strong>{min(len(result_data), 15)}</strong> of <strong>{len(result_data)}</strong> analyzed articles with AI insights</div>",
+                        unsafe_allow_html=True,
                     )
+
+                    articles_to_show = result_data[:15]
+                    card_html_list = [
+                        display_article_card(article, idx)
+                        for idx, article in enumerate(articles_to_show, 1)
+                    ]
+
+                    # Display articles in 2-column grid with better spacing
+                    for start in range(0, len(card_html_list), 2):
+                        cols = st.columns(2, gap="large")
+                        for offset in range(2):
+                            card_idx = start + offset
+                            if card_idx < len(card_html_list):
+                                with cols[offset]:
+                                    st_html(
+                                        card_html_list[card_idx],
+                                        height=650,
+                                        width=None,
+                                        scrolling=True,
+                                    )
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    download_payload = json.dumps(
+                        result_data,
+                        indent=2,
+                        ensure_ascii=False,
+                    )
+                    safe_company = re.sub(
+                        r"[^a-z0-9]+", "_", selected_company.lower()
+                    ).strip("_")
+                    st.download_button(
+                        "📥 Download All Articles (JSON)",
+                        data=download_payload.encode("utf-8"),
+                        file_name=f"{safe_company or 'analysis'}_ai_articles.json",
+                        mime="application/json",
+                    )
+                else:
+                    st.warning("No enriched articles available from the AI analysis.")
 
             except requests.exceptions.Timeout:
                 status_placeholder.error(

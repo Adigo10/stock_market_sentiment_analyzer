@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, Calendar, Star } from 'lucide-react';
+import { ExternalLink, Calendar, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from './Card';
 import { SentimentBadge, KeyphraseBadge } from './Badge';
 import type { Article } from '@/types';
@@ -12,6 +12,8 @@ interface ArticleCardProps {
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({ article, index }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const rawHeadline = article.headline || article.title || 'No headline';
   const headline = formatHeadline(rawHeadline);
   const rawSummary = article.summary || article.content || 'No summary available';
@@ -25,6 +27,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, index }) => {
   
   const keyphrases = article.keyphrase_analysis?.keyphrases;
   const formattedDate = formatArticleDate(article);
+
+  const shouldTruncate = summary.length > 320;
+  const displaySummary = shouldTruncate && !isExpanded ? truncateText(summary, 320) : summary;
 
   return (
     <Card animate delay={index * 0.05} className="p-6 hover:shadow-lg transition-shadow duration-300">
@@ -50,9 +55,33 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, index }) => {
         </div>
 
         {/* Summary */}
-        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-          {truncateText(summary, 280)}
-        </p>
+        <div>
+          <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-justify">
+            {displaySummary}
+          </p>
+          
+          {/* Expand/Collapse Button */}
+          {shouldTruncate && (
+            <motion.button
+              onClick={() => setIsExpanded(!isExpanded)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="mt-3 flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+            >
+              {isExpanded ? (
+                <>
+                  <ChevronUp size={20} />
+                  <span>Show Less</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={20} />
+                  <span>Show More</span>
+                </>
+              )}
+            </motion.button>
+          )}
+        </div>
 
         {/* AI Sentiment Analysis */}
         {sentimentReason && (
@@ -80,13 +109,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, index }) => {
               <span>Key Phrases</span>
             </div>
             <div className="flex flex-wrap -m-1">
-              {keyphrases.positive?.slice(0, 5).map((kp, idx) => (
+              {keyphrases.positive?.slice(0, 8).map((kp, idx) => (
                 <KeyphraseBadge key={idx} phrase={kp.phrase} confidence={kp.confidence} type="positive" />
               ))}
-              {keyphrases.negative?.slice(0, 5).map((kp, idx) => (
+              {keyphrases.negative?.slice(0, 8).map((kp, idx) => (
                 <KeyphraseBadge key={idx} phrase={kp.phrase} confidence={kp.confidence} type="negative" />
               ))}
-              {keyphrases.neutral?.slice(0, 5).map((kp, idx) => (
+              {keyphrases.neutral?.slice(0, 8).map((kp, idx) => (
                 <KeyphraseBadge key={idx} phrase={kp.phrase} confidence={kp.confidence} type="neutral" />
               ))}
             </div>

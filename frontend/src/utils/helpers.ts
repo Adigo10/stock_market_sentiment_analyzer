@@ -27,14 +27,23 @@ export function parseSentiment(sentimentText: string): ParsedSentiment {
       type = 'negative';
     }
   } else {
-    // Fallback: check if the text contains sentiment keywords
+    // Fallback: check if the text contains sentiment keywords (matching Streamlit format)
     const lowerText = sentimentText.toLowerCase();
-    if (lowerText.includes('sentiment: good') || lowerText.includes('sentiment:good')) {
+    if (lowerText.includes('sentiment: good') || lowerText.includes('sentiment:good') || 
+        lowerText.includes('sentiment: positive') || lowerText.includes('sentiment:positive')) {
       type = 'positive';
-    } else if (lowerText.includes('sentiment: bad') || lowerText.includes('sentiment:bad')) {
+    } else if (lowerText.includes('sentiment: bad') || lowerText.includes('sentiment:bad') ||
+               lowerText.includes('sentiment: negative') || lowerText.includes('sentiment:negative')) {
       type = 'negative';
     } else if (lowerText.includes('sentiment: neutral') || lowerText.includes('sentiment:neutral')) {
       type = 'neutral';
+    }
+    
+    // Try to extract reason from "Reason: " pattern
+    const reasonPatternMatch = sentimentText.match(/Reason:\s*(.*)/s);
+    if (reasonPatternMatch) {
+      reason = reasonPatternMatch[1].trim();
+      return { type, reason };
     }
   }
 

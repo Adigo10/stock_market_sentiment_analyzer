@@ -26,7 +26,8 @@ class FinancialNewsAnalyzer:
         top_k: int = 10,
     ):
         self.decay_rate = decay_rate
-        
+        self.last_pipeline_metrics = {}  # Store metrics from last run
+
         try:
             self.similarity_pipeline = SimilarityExpansionPipeline(
                 model_name="all-mpnet-base-v2",
@@ -36,7 +37,7 @@ class FinancialNewsAnalyzer:
         except Exception as e:
             print(f"⚠️  Warning: Similarity pipeline initialization failed: {e}")
             self.similarity_pipeline = None
-        
+
         # Initialize sentiment predictor and keyphrase analyzer
         try:
             print("Initializing Sentiment Predictor...")
@@ -44,7 +45,7 @@ class FinancialNewsAnalyzer:
         except Exception as e:
             print(f"✗ Failed to initialize Sentiment Predictor: {e}")
             raise
-        
+
         try:
             print("Initializing Keyphrase Analyzer...")
             self.keyphrase_analyzer = KeyphraseAnalyzer()
@@ -70,7 +71,7 @@ class FinancialNewsAnalyzer:
         """
         This function will be called from server.py
         Performs ranking, similarity expansion, sentiment prediction, and keyphrase analysis.
-        
+
         Pipeline:
         1. Rank articles using rule-based ranker
         2. Apply similarity expansion to get top 15 articles
@@ -101,9 +102,18 @@ class FinancialNewsAnalyzer:
                     temp_output_path = temp_output.name
 
                 # Run similarity expansion pipeline
-                final_articles = self.similarity_pipeline.run(
+                pipeline_result = self.similarity_pipeline.run(
                     temp_input_path, temp_output_path
                 )
+
+                # Extract articles and metrics from result
+                if isinstance(pipeline_result, dict):
+                    final_articles = pipeline_result.get("articles", [])
+                    pipeline_metrics = pipeline_result.get("pipeline_metrics", {})
+                else:
+                    # Backward compatibility if pipeline returns just articles
+                    final_articles = pipeline_result
+                    pipeline_metrics = {}
 
                 # Clean up temporary files
                 os.unlink(temp_input_path)
@@ -113,6 +123,9 @@ class FinancialNewsAnalyzer:
                     f"✓ Similarity expansion completed. Final articles: {len(final_articles)}"
                 )
 
+                # Store metrics for later retrieval
+                self.last_pipeline_metrics = pipeline_metrics
+
             except Exception as e:
                 print(f"✗ Similarity expansion failed: {str(e)}")
                 print("✓ Falling back to top 15 ranked articles")
@@ -121,49 +134,55 @@ class FinancialNewsAnalyzer:
         else:
             print("⚠️  Similarity pipeline not available, using top 15 ranked articles")
             final_articles = ranked_df[:15].to_dict(orient="records")
-        
+
         # Step 4: Run sentiment prediction on top 15 articles
         print(f"\n{'='*80}")
         print("STEP 4: SENTIMENT PREDICTION")
         print(f"{'='*80}")
         articles_with_sentiment = self.sentiment_predictor.predict_batch(
-            final_articles,
-            batch_size=8
+            final_articles, batch_size=8
         )
-        
+
         # Step 5: Run keyphrase analysis on each article
         print(f"\n{'='*80}")
         print("STEP 5: KEYPHRASE ANALYSIS")
         print(f"{'='*80}")
         enriched_articles = []
-        
+
         if self.keyphrase_analyzer is not None:
             for i, article in enumerate(articles_with_sentiment):
                 try:
-                    source_text = article.get('source_text', '')
-                    predicted_sentiment = article.get('predicted_sentiment', '')
-                    
+                    source_text = article.get("source_text", "")
+                    predicted_sentiment = article.get("predicted_sentiment", "")
+
                     # Run keyphrase analysis
-                    keyphrase_result = self.keyphrase_analyzer.analyze_source_with_sentiment(
-                        source=source_text,
-                        sentiment=predicted_sentiment
+                    keyphrase_result = (
+                        self.keyphrase_analyzer.analyze_source_with_sentiment(
+                            source=source_text, sentiment=predicted_sentiment
+                        )
                     )
-                    
+
                     # Add keyphrase analysis to article
-                    article['keyphrase_analysis'] = keyphrase_result
+                    article["keyphrase_analysis"] = keyphrase_result
                     enriched_articles.append(article)
-                    
+
                     if (i + 1) % 5 == 0 or (i + 1) == len(articles_with_sentiment):
-                        print(f"  Analyzed {i + 1}/{len(articles_with_sentiment)} articles...")
-                
+                        print(
+                            f"  Analyzed {i + 1}/{len(articles_with_sentiment)} articles..."
+                        )
+
                 except Exception as e:
-                    print(f"⚠️  Warning: Keyphrase analysis failed for article {i+1}: {e}")
+                    print(
+                        f"⚠️  Warning: Keyphrase analysis failed for article {i+1}: {e}"
+                    )
                     # Still add the article without keyphrase analysis
                     enriched_articles.append(article)
-            
-            print(f"✓ Keyphrase analysis completed for {len(enriched_articles)} articles")
+
+            print(
+                f"✓ Keyphrase analysis completed for {len(enriched_articles)} articles"
+            )
         else:
             print("⚠️  Keyphrase analyzer not available, skipping keyphrase analysis")
             enriched_articles = articles_with_sentiment
-        
+
         return enriched_articles

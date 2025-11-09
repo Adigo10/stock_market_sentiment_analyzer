@@ -34,10 +34,71 @@ export interface SentimentStats {
   total_keyphrases: number;
 }
 
+export interface Top5Article {
+  id: string | number;
+  headline: string;
+  rank_score: number;
+  source: string;
+  date: string;
+}
+
+export interface SimilarityScore {
+  id: string | number;
+  headline: string;
+  score: number;
+  source: string;
+}
+
+export interface PipelineMetrics {
+  timings: {
+    load?: number;
+    separation?: number;
+    summary_generation?: number;
+    summary_encoding?: number;
+    text_preparation?: number;
+    articles_encoding?: number;
+    total_encoding?: number;
+    score_assignment?: number;
+    sorting?: number;
+    similarity_computation?: number;
+    selection?: number;
+    total_computation?: number;
+    save?: number;
+    total?: number;
+  };
+  stats: {
+    input_articles?: number;
+    top_articles?: number;
+    remaining_articles?: number;
+    selected_similar?: number;
+    final_articles?: number;
+    articles_per_second?: number;
+  };
+  details: {
+    top_5?: Top5Article[];
+    groq_summary?: string;
+    top_10_scores?: SimilarityScore[];
+    additional_articles?: Array<{
+      id: string | number;
+      headline: string;
+      score: number;
+    }>;
+    selection_count?: {
+      top_k: number;
+      above_threshold: number;
+      total_selected: number;
+    };
+    model_name?: number;
+    threshold?: number;
+    top_k?: number;
+  };
+}
+
 export interface FetchRankResponse {
   status: string;
   articles: Article[];
   message?: string;
+  pipeline_metrics?: PipelineMetrics;
 }
 
 export interface EnrichResponse {
