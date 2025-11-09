@@ -161,6 +161,12 @@ class SentimentPredictor:
                 summary = batch[j].get('summary', '') or batch[j].get('content', '')
                 article_with_pred['source_text'] = f"{headline}. {summary}"
                 
+                # Preserve date fields (datetime, date, publish_date, published_date, timestamp)
+                # This ensures the date information is retained through the pipeline
+                for date_field in ['datetime', 'date', 'publish_date', 'published_date', 'timestamp', 'time']:
+                    if date_field in batch[j]:
+                        article_with_pred[date_field] = batch[j][date_field]
+                
                 results.append(article_with_pred)
             
             if (i + batch_size) % 32 == 0 or (i + batch_size) >= len(articles):
