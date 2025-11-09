@@ -4,6 +4,7 @@ Loads the fine-tuned model and generates sentiment predictions for news articles
 """
 
 import torch
+import re
 from transformers import AutoTokenizer, T5ForConditionalGeneration
 from pathlib import Path
 from typing import Dict, List, Any
@@ -161,6 +162,12 @@ class SentimentPredictor:
                 summary = batch[j].get('summary', '') or batch[j].get('content', '')
                 article_with_pred['source_text'] = f"{headline}. {summary}"
                 
+                # Preserve date fields (datetime, date, publish_date, published_date, timestamp)
+                # This ensures the date information is retained through the pipeline
+                for date_field in ['datetime', 'date', 'publish_date', 'published_date', 'timestamp', 'time']:
+                    if date_field in batch[j]:
+                        article_with_pred[date_field] = batch[j][date_field]
+                
                 results.append(article_with_pred)
             
             if (i + batch_size) % 32 == 0 or (i + batch_size) >= len(articles):
@@ -183,21 +190,31 @@ class SentimentPredictor:
             Sentiment label: 'Good', 'Bad', or 'Neutral'
         """
         try:
-            # Try to extract from structured format
-            if 'Sentiment:' in predicted_text:
-                sentiment = predicted_text.split('Sentiment:')[1].split('.')[0].strip()
-                if sentiment in ['Good', 'Bad', 'Neutral']:
-                    return sentiment
+            # Try to extract from structured format with flexible whitespace
+            if 'Sentiment:' in predicted_text or 'sentiment:' in predicted_text.lower():
+                # Use case-insensitive search and extract the word after "Sentiment:"
+                sentiment_match = re.search(r'Sentiment:\s*(\w+)', predicted_text, re.IGNORECASE)
+                if sentiment_match:
+                    sentiment = sentiment_match.group(1).strip()
+                    # Normalize to Good/Bad/Neutral
+                    sentiment_lower = sentiment.lower()
+                    if sentiment_lower in ['good', 'positive', 'bullish']:
+                        return 'Good'
+                    elif sentiment_lower in ['bad', 'negative', 'bearish']:
+                        return 'Bad'
+                    elif sentiment_lower in ['neutral', 'okay', 'mixed', 'uncertain']:
+                        return 'Neutral'
             
-            # Fallback: search for keywords
+            # Fallback: search for keywords in the entire text
             text_lower = predicted_text.lower()
-            if 'good' in text_lower or 'positive' in text_lower:
+            if 'good' in text_lower or 'positive' in text_lower or 'bullish' in text_lower:
                 return 'Good'
-            elif 'bad' in text_lower or 'negative' in text_lower:
+            elif 'bad' in text_lower or 'negative' in text_lower or 'bearish' in text_lower:
                 return 'Bad'
             else:
                 return 'Neutral'
-        except:
+        except Exception as e:
+            print(f"Warning: Error extracting sentiment label: {e}")
             return 'Neutral'
 
 

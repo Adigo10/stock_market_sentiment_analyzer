@@ -168,16 +168,29 @@ def get_companies():
 
 # Helper functions
 def parse_sentiment(sentiment_text):
-    """Parse sentiment from format: <senti>Good<reason>Explanation"""
+    """Parse sentiment from format: Sentiment: Good/Bad/Neutral Reason: Explanation"""
     if not sentiment_text:
         return "neutral", ""
-
-    sentiment_match = re.search(r"Sentiment:\s(\w+)", sentiment_text)
-    reason_match = re.search(r"Reason:\s(.*)", sentiment_text, re.DOTALL)
-
-    sentiment_type = sentiment_match.group(1).lower() if sentiment_match else "neutral"
-    reason = reason_match.group(1).strip() if reason_match else sentiment_text
-
+    
+    sentiment_match = re.search(r'Sentiment:\s*(\w+)', sentiment_text, re.IGNORECASE)
+    reason_match = re.search(r'Reason:\s*(.*)', sentiment_text, re.IGNORECASE | re.DOTALL)
+    
+    sentiment_type = sentiment_match.group(1).lower() if sentiment_match else 'neutral'
+    
+    # Extract reason properly - if found, use it; otherwise return empty string
+    if reason_match:
+        reason = reason_match.group(1).strip()
+    else:
+        # If no "Reason:" found, check if there's text after sentiment
+        if sentiment_match:
+            # Get everything after the sentiment declaration
+            remaining_text = sentiment_text[sentiment_match.end():].strip()
+            # Remove common separators at the start
+            reason = re.sub(r'^[:\-\.\,\s]+', '', remaining_text).strip()
+        else:
+            # Fallback: use the entire text if no structure found
+            reason = sentiment_text.strip()
+    
     return sentiment_type, reason
 
 
@@ -195,11 +208,13 @@ def get_sentiment_badge(sentiment_type):
         "neutral": "⚪ Neutral",
     }
 
-    key = "neutral"
-    if sentiment_type in ("good", "positive"):
-        key = "positive"
-    elif sentiment_type in ("bad", "negative"):
-        key = "negative"
+    key = 'neutral'
+    if sentiment_type in ('good', 'positive', 'bullish'):
+        key = 'positive'
+    elif sentiment_type in ('bad', 'negative', 'bearish'):
+        key = 'negative'
+    elif sentiment_type in ('neutral', 'okay', 'mixed', 'uncertain'):
+        key = 'neutral'
 
     return f'<span style="{style_map[key]}">{label_map[key]}</span>'
 
@@ -277,15 +292,15 @@ def extract_article_date(article, default="-"):
 
 def display_article_card(article, index):
     """Display a single article as a beautiful card with expand/collapse functionality"""
-    headline = article.get("headline", article.get("title", "No headline"))
-    summary = article.get("summary", article.get("content", "No summary available"))
-    url = article.get("url", "#")
-
+    headline = article.get('headline', article.get('title', 'No headline'))
+    summary = article.get('summary', article.get('content', 'No summary available'))
+    url = article.get('url', '#')
+    
     # Extract date from various possible fields
-    publish_date = extract_article_date(article, "")
-
-    rank_score = article.get("rank_score", 0)
-
+    publish_date = extract_article_date(article, '')
+    
+    rank_score = article.get('rank_score', 0)
+    
     # Parse sentiment
     predicted_sentiment = article.get("predicted_sentiment", "")
     sentiment_type, sentiment_reason = parse_sentiment(predicted_sentiment)
@@ -304,15 +319,15 @@ def display_article_card(article, index):
         else:
             formatted_date = "Date unknown"
     except:
-        formatted_date = str(publish_date) if publish_date else "Date unknown"
-
+        formatted_date = str(publish_date) if publish_date else 'Date unknown'
+    
     # Unique ID for expand/collapse functionality
     card_id = f"article-card-{index}"
-
+    
     # Truncate summary for preview
-    summary_preview = summary[:320] + "..." if len(summary) > 320 else summary
+    summary_preview = summary[:320] + '...' if len(summary) > 320 else summary
     summary_full = summary
-
+    
     # Build card HTML with expand/collapse functionality
     card_html = f"""
     <div style="width:100%;max-width:100%;overflow:hidden;">
@@ -336,7 +351,7 @@ def display_article_card(article, index):
             {summary_full}
         </div>
     """
-
+    
     # Add expand/collapse button if summary is truncated
     if len(summary) > 320:
         card_html += f"""
@@ -344,7 +359,7 @@ def display_article_card(article, index):
             ▼ Show More
         </button>
         """
-
+    
     if sentiment_reason:
         card_html += f"""
         <div style="background:linear-gradient(135deg,#f0f9ff 0%,#e0e7ff 100%);padding:18px;border-radius:12px;margin-bottom:18px;border:1px solid #c7d2fe;">
@@ -370,10 +385,10 @@ def display_article_card(article, index):
             <span style="font-size:1.2rem;">→</span>
         </a>
         """
-
+    
     card_html += "</div>"  # Close article card div
     card_html += "</div>"  # Close wrapper div
-
+    
     # Add JavaScript for expand/collapse
     card_html += """
     <script>
@@ -394,7 +409,7 @@ def display_article_card(article, index):
     }
     </script>
     """
-
+    
     return card_html
 
 
@@ -520,17 +535,11 @@ if companies:
                         "neutral": sentiment_stats.get("neutral", 0),
                     }
                     total_phrases = sentiment_stats.get("total_keyphrases", 0)
-
+                    
                     metric_cols = st.columns(4)
-                    metric_cols[0].metric(
-                        "Positive", sentiment_counts["positive"], delta="🟢"
-                    )
-                    metric_cols[1].metric(
-                        "Negative", sentiment_counts["negative"], delta="🔴"
-                    )
-                    metric_cols[2].metric(
-                        "Neutral", sentiment_counts["neutral"], delta="⚪"
-                    )
+                    metric_cols[0].metric("Positive", sentiment_counts["positive"], delta="🟢")
+                    metric_cols[1].metric("Negative", sentiment_counts["negative"], delta="🔴")
+                    metric_cols[2].metric("Neutral", sentiment_counts["neutral"], delta="⚪")
                     metric_cols[3].metric("Keyphrases", total_phrases, delta="🔑")
 
                     if result_data:
@@ -624,7 +633,7 @@ if companies:
                     st.markdown("### 📰 AI-Enriched Articles")
                     st.markdown(
                         f"<div style='color:#6b7280;font-size:1rem;margin-bottom:1.5rem;'>Showing <strong>{min(len(result_data), 15)}</strong> of <strong>{len(result_data)}</strong> analyzed articles with AI insights</div>",
-                        unsafe_allow_html=True,
+                        unsafe_allow_html=True
                     )
 
                     articles_to_show = result_data[:15]
@@ -640,18 +649,24 @@ if companies:
                             card_idx = start + offset
                             if card_idx < len(card_html_list):
                                 with cols[offset]:
-                                    st_html(
-                                        card_html_list[card_idx],
-                                        height=650,
-                                        width=None,
-                                        scrolling=True,
-                                    )
+                                    st_html(card_html_list[card_idx], height=650, width=None, scrolling=True)
 
                     st.markdown("<br>", unsafe_allow_html=True)
                     download_payload = json.dumps(
                         result_data,
                         indent=2,
                         ensure_ascii=False,
+                    )
+                    safe_company = re.sub(r"[^a-z0-9]+", "_", selected_company.lower()).strip("_")
+                    st.download_button(
+                        "📥 Download All Articles (JSON)",
+                        data=download_payload.encode("utf-8"),
+                        file_name=f"{safe_company or 'analysis'}_ai_articles.json",
+                        mime="application/json",
+                    )
+                else:
+                    st.warning(
+                        "No enriched articles available from the AI analysis."
                     )
                     safe_company = re.sub(
                         r"[^a-z0-9]+", "_", selected_company.lower()
