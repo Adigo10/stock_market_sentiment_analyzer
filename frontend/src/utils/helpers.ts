@@ -5,9 +5,9 @@ export function parseSentiment(sentimentText: string): ParsedSentiment {
     return { type: 'neutral', reason: '' };
   }
 
-  // Try to extract sentiment and reason from the formatted string
-  const sentimentMatch = sentimentText.match(/<senti>(\w+)/i);
-  const reasonMatch = sentimentText.match(/<reason>(.*)/s);
+  // Try to extract sentiment using the "Sentiment: " pattern (matching Python logic)
+  const sentimentMatch = sentimentText.match(/Sentiment:\s*(\w+)/i);
+  const reasonMatch = sentimentText.match(/Reason:\s*(.*)/is);
 
   let type: SentimentType = 'neutral';
   let reason = '';
@@ -15,42 +15,29 @@ export function parseSentiment(sentimentText: string): ParsedSentiment {
   if (sentimentMatch) {
     const extractedType = sentimentMatch[1].toLowerCase();
     // Map "good" to "positive" and "bad" to "negative"
-    if (extractedType === 'good') {
+    if (extractedType === 'good' || extractedType === 'positive' || extractedType === 'bullish') {
       type = 'positive';
-    } else if (extractedType === 'bad') {
+    } else if (extractedType === 'bad' || extractedType === 'negative' || extractedType === 'bearish') {
       type = 'negative';
-    } else if (extractedType === 'neutral') {
+    } else if (extractedType === 'neutral' || extractedType === 'okay' || extractedType === 'mixed' || extractedType === 'uncertain') {
       type = 'neutral';
-    } else if (extractedType === 'positive') {
-      type = 'positive';
-    } else if (extractedType === 'negative') {
-      type = 'negative';
-    }
-  } else {
-    // Fallback: check if the text contains sentiment keywords (matching Streamlit format)
-    const lowerText = sentimentText.toLowerCase();
-    if (lowerText.includes('sentiment: good') || lowerText.includes('sentiment:good') || 
-        lowerText.includes('sentiment: positive') || lowerText.includes('sentiment:positive')) {
-      type = 'positive';
-    } else if (lowerText.includes('sentiment: bad') || lowerText.includes('sentiment:bad') ||
-               lowerText.includes('sentiment: negative') || lowerText.includes('sentiment:negative')) {
-      type = 'negative';
-    } else if (lowerText.includes('sentiment: neutral') || lowerText.includes('sentiment:neutral')) {
-      type = 'neutral';
-    }
-    
-    // Try to extract reason from "Reason: " pattern
-    const reasonPatternMatch = sentimentText.match(/Reason:\s*(.*)/s);
-    if (reasonPatternMatch) {
-      reason = reasonPatternMatch[1].trim();
-      return { type, reason };
     }
   }
 
+  // Extract reason properly - if found, use it; otherwise return empty string
   if (reasonMatch) {
     reason = reasonMatch[1].trim();
   } else {
-    reason = sentimentText;
+    // If no "Reason:" found, check if there's text after sentiment
+    if (sentimentMatch) {
+      // Get everything after the sentiment declaration
+      const remainingText = sentimentText.substring(sentimentMatch.index! + sentimentMatch[0].length).trim();
+      // Remove common separators at the start
+      reason = remainingText.replace(/^[:\-.,\s]+/, '').trim();
+    } else {
+      // Fallback: use the entire text if no structure found
+      reason = sentimentText.trim();
+    }
   }
 
   return { type, reason };
@@ -58,8 +45,9 @@ export function parseSentiment(sentimentText: string): ParsedSentiment {
 
 export function normalizeSentimentType(type: SentimentType): 'positive' | 'negative' | 'neutral' {
   const normalized = type.toLowerCase();
-  if (normalized === 'good' || normalized === 'positive') return 'positive';
-  if (normalized === 'bad' || normalized === 'negative') return 'negative';
+  if (normalized === 'good' || normalized === 'positive' || normalized === 'bullish') return 'positive';
+  if (normalized === 'bad' || normalized === 'negative' || normalized === 'bearish') return 'negative';
+  if (normalized === 'neutral' || normalized === 'okay' || normalized === 'mixed' || normalized === 'uncertain') return 'neutral';
   return 'neutral';
 }
 

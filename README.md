@@ -147,10 +147,28 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
    ```
    UI opens automatically at `http://localhost:8501`
 
-3. **Quick launch (Windows)**
+3. **Quick launch**
+
+   1. **Quick launch (Windows - Streamlit)**
    ```powershell
    .\start.bat
    ```
+
+   2. **Quick launch (MacOS/Linux - Streamlit)**
+   ```bash
+   ./start.sh
+   ```
+
+   3. **Quick launch (Windows - React)**
+   ```powershell
+   .\start_react.bat
+   ```
+
+   4. **Quick launch (MacOS/Linux - React)**
+   ```bash
+   ./start_react.sh
+   ```
+
 
 ---
 
