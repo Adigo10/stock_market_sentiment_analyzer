@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, Download, AlertCircle } from 'lucide-react';
+import { Download, AlertCircle } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './Button';
 import { Card } from './Card';
-import { LoadingSpinner, ProgressBar } from './LoadingSpinner';
+import { ProgressBar } from './LoadingSpinner';
 import { MetricCard } from './MetricCard';
 import { StepCard } from './StepCard';
 import { DataTable } from './DataTable';
@@ -22,7 +22,7 @@ type AnalysisStatus = 'idle' | 'step1' | 'step2' | 'step3' | 'completed' | 'erro
 type SortOption = 'default' | 'positive' | 'negative' | 'neutral' | 'rank-high' | 'rank-low' | 'recent' | 'oldest';
 type FilterOption = 'all' | 'positive' | 'negative' | 'neutral';
 
-export const Dashboard: React.FC = () => {
+export function Dashboard() {
   const { theme } = useTheme();
   const [companies, setCompanies] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
@@ -729,5 +729,4 @@ export const Dashboard: React.FC = () => {
       </main>
     </div>
   );
-};
-
+}

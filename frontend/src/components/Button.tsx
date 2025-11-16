@@ -1,14 +1,16 @@
-import React from 'react';
 import { motion } from 'framer-motion';
+import type { ComponentProps, ReactNode } from 'react';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+type MotionButtonProps = ComponentProps<typeof motion.button>;
+
+interface ButtonProps extends Omit<MotionButtonProps, 'children'> {
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export function Button({
   variant = 'primary',
   size = 'md',
   isLoading = false,
@@ -16,7 +18,7 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   disabled,
   ...props
-}) => {
+}: ButtonProps) {
   const baseClasses = 'font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2';
   
   const variantClasses = {
@@ -48,5 +50,4 @@ export const Button: React.FC<ButtonProps> = ({
       {children}
     </motion.button>
   );
-};
-
+}

@@ -1,4 +1,3 @@
-import React from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Dashboard } from './components/Dashboard';
 
@@ -11,4 +10,3 @@ function App() {
 }
 
 export default App;
-
