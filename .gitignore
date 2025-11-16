@@ -6,3 +6,6 @@ __pycache__/
 processed_output.json
 ranked_articles.json
 input.json
+model/
+frontend/node_modules
+*.log
