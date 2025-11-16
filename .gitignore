@@ -8,4 +8,5 @@ ranked_articles.json
 input.json
 model/
 frontend/node_modules
+node_modules
 *.log
