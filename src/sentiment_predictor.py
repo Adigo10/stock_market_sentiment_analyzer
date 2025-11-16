@@ -3,9 +3,11 @@ Sentiment Predictor using Fine-tuned Flan-T5 Model
 Loads the fine-tuned model and generates sentiment predictions for news articles.
 """
 
+import os
 import torch
 import re
 from transformers import AutoTokenizer, T5ForConditionalGeneration
+from huggingface_hub import snapshot_download
 from pathlib import Path
 from typing import Dict, List, Any
 import time
@@ -16,7 +18,7 @@ class SentimentPredictor:
     Loads the fine-tuned Flan-T5 model and predicts sentiment for financial news.
     """
     
-    def __init__(self, model_path: str = None):
+    def __init__(self, model_path: str = None, model_repo_id: str = "tssrihari/Flan_T5_Base"):
         """
         Initialize the sentiment predictor.
         
@@ -29,20 +31,18 @@ class SentimentPredictor:
             current_dir = Path(__file__).parent.parent.absolute()
             model_path = current_dir / "model" / "Flan_T5_Base"
         
+        self.model_repo_id = model_repo_id
         self.model_path = Path(model_path)
 
-        if not self.model_path.exists():
-            raise FileNotFoundError(
-                f"Model directory not found: {self.model_path}\n"
-                "Please ensure the fine-tuned model is available."
-            )
+        if not self.model_path.exists() or not any(self.model_path.iterdir()):
+            self._download_model_assets()
         
         print(f"Loading sentiment prediction model from: {self.model_path}")
         load_start = time.time()
         
         # Load tokenizer and model (AutoTokenizer handles SentencePiece automatically)
-        self.tokenizer = AutoTokenizer.from_pretrained(str("tssrihari/Flan_T5_Base"))
-        self.model = T5ForConditionalGeneration.from_pretrained(str("tssrihari/Flan_T5_Base"))
+        self.tokenizer = AutoTokenizer.from_pretrained(str(self.model_path))
+        self.model = T5ForConditionalGeneration.from_pretrained(str(self.model_path))
         
         # Move model to GPU if available
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -53,6 +53,28 @@ class SentimentPredictor:
         print(f"✓ Model loaded successfully in {load_time:.2f}s")
         print(f"  Device: {self.device}")
         print(f"  Model parameters: {self.model.num_parameters():,}")
+
+    def _download_model_assets(self):
+        """Download the fine-tuned weights from Hugging Face if missing."""
+        print(
+            f"Model assets not found at {self.model_path}. Downloading from {self.model_repo_id}..."
+        )
+        token = os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HF_TOKEN")
+        try:
+            self.model_path.parent.mkdir(parents=True, exist_ok=True)
+            snapshot_download(
+                repo_id=self.model_repo_id,
+                local_dir=str(self.model_path),
+                local_dir_use_symlinks=False,
+                token=token,
+                resume_download=True,
+            )
+            print("✓ Model download complete")
+        except Exception as exc:
+            raise RuntimeError(
+                "Failed to download model from Hugging Face. "
+                "Set HUGGINGFACE_TOKEN if the repository is private."
+            ) from exc
     
     def predict_single(self, source_text: str, max_length: int = 128, num_beams: int = 4) -> str:
         """

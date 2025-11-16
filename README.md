@@ -98,6 +98,7 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
 - API Keys:
   - Finnhub API key
   - DeepSeek API key (optional, for synthetic data generation)
+  - Hugging Face access token (only required if the `tssrihari/Flan_T5_Base` repository is private)
 
 ### Installation
 
@@ -131,7 +132,9 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
    ```
    FINNHUB_API_KEY=your_finnhub_api_key_here
    deepseeker_api_key=your_deepseek_api_key_here  # Optional
+   HUGGINGFACE_TOKEN=your_hf_token_here          # Optional, for private HF repos
    ```
+   If the Hugging Face model is public the token can be omitted. On first run the backend automatically downloads the fine-tuned Flan-T5 weights into `model/Flan_T5_Base` when they are missing.
 
 ### Running the Application
 
@@ -168,6 +171,84 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
    ```bash
    ./start_react.sh
    ```
+
+
+---
+
+## ☁️ Deploying to Heroku
+
+The repository now ships with two deployable targets:
+
+1. **FastAPI backend (Python)** – powered by `gunicorn` + `uvicorn`.
+2. **React/Vite frontend (TypeScript)** – lives under `frontend/` and builds to static assets served by a lightweight Node server (`frontend/server.mjs`).
+
+### Backend (FastAPI)
+
+1. **Log in and create the backend app**
+   ```bash
+   heroku login
+   heroku create stock-sentiment-api --region us
+   ```
+
+2. **Configure secrets** – exposed as environment variables on the dyno.
+   ```bash
+   heroku config:set -a stock-sentiment-api FINNHUB_API_KEY=prod_key_here
+   heroku config:set -a stock-sentiment-api deepseeker_api_key=optional_key
+   heroku config:set -a stock-sentiment-api HUGGINGFACE_TOKEN=optional_if_private
+   ```
+
+3. **Deploy from `main`** – Heroku sees `runtime.txt` + `requirements.txt`.
+   ```bash
+   heroku git:remote -a stock-sentiment-api
+   git push heroku main
+   ```
+   The backend `web` dyno runs `gunicorn server:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT` from the root Procfile.
+
+4. **Scale and verify**
+   ```bash
+   heroku ps:scale -a stock-sentiment-api web=1
+   heroku logs --tail -a stock-sentiment-api
+   curl https://stock-sentiment-api.herokuapp.com/health
+   ```
+
+### Frontend (React + TypeScript)
+
+The React client is inside `frontend/`. It compiles with Vite and uses `frontend/server.mjs` plus `frontend/Procfile` to serve the `dist/` folder. Deploy it to a separate Heroku Node app using the "subdirectory" buildpack so the root repo can stay Python-focused.
+
+1. **Create the frontend app**
+   ```bash
+   heroku create stock-sentiment-ui --region us
+   ```
+
+2. **Target the `frontend/` subdirectory**
+   ```bash
+   heroku buildpacks:add -a stock-sentiment-ui https://github.com/timanovsky/subdir-heroku-buildpack
+   heroku config:set -a stock-sentiment-ui PROJECT_PATH=frontend
+   heroku buildpacks:add -a stock-sentiment-ui heroku/nodejs
+   ```
+
+3. **Point the UI at the backend** – expose the API base URL at build/runtime.
+   ```bash
+   heroku config:set -a stock-sentiment-ui VITE_API_BASE_URL=https://stock-sentiment-api.herokuapp.com
+   ```
+
+4. **Add a dedicated remote and deploy**
+   ```bash
+   heroku git:remote -a stock-sentiment-ui -r heroku-frontend
+   git push heroku-frontend main
+   ```
+   The buildpack copies `frontend/` to the slug root, runs `yarn install`, executes `yarn heroku-postbuild` (which triggers `yarn build`), then launches the Node static server defined in `frontend/Procfile` (`yarn start`).
+
+5. **Verify**
+   ```bash
+   heroku logs --tail -a stock-sentiment-ui
+   open https://stock-sentiment-ui.herokuapp.com
+   ```
+
+### Notes
+- Run `python setup_nltk.py` locally, commit/download the corpora if the backend needs them at runtime.
+- Large model assets in `model/` must stay within Heroku slug size limits (~500 MB slug; dyno ephemeral storage is 2 GB). The backend now auto-downloads the Flan-T5 weights from Hugging Face if `model/Flan_T5_Base` is empty.
+- For local frontend dev use `yarn --cwd frontend dev`. In production the React app relies on `VITE_API_BASE_URL`; when unset it defaults to `/api`, so configure a proxy or CDN rewrite accordingly.
 
 
 ---
