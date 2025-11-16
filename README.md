@@ -87,6 +87,7 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
 **APIs & Services**
 - Finnhub API (Financial News)
 - DeepSeek API (Synthetic Data)
+- Groq API (Similariy summary)
 
 ---
 
