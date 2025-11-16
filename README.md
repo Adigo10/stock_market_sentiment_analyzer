@@ -100,7 +100,7 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
 - API Keys:
   - Finnhub API key
   - DeepSeek API key (optional, for synthetic data generation)
-  - Hugging Face access token (only required if the `tssrihari/Flan_T5_Base` repository is private)
+  - Groq API key
 
 ### Installation
 
