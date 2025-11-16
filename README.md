@@ -1,151 +1,391 @@
-# AI6127-DNN: Financial News Analysis with Deep Learning - Text Pre-Processing
+# Stock Market Sentiment Analyzer
 
-### Text Processing
-- **Custom CleanText Class**: Implements full preprocessing pipeline
-- **Financial Term Preservation**: Maintains important financial vocabulary
-- **Multi-step Cleaning**:
-  1. Lowercase normalization
-  2. Noise removal (HTML, URLs, irrelevant characters)
-  3. Stop word removal with tokenization
-  4. Lemmatization with WordNet
+> AI-powered financial news analysis platform using deep learning for sentiment prediction, keyphrase extraction, and intelligent article ranking.
 
-### Example Input
-This is what the input.json file should look like:
-```
-{
-  "articles": [
-    {
-      "id": 1,
-      "title": "Tesla Reports Strong Q3 Results",
-      "content": "Tesla reported Q3 earnings of $2.3B, beating analyst estimates by 15%. EPS came in at $0.95 versus expected $0.87. CEO Elon Musk praised the team's execution.",
-      "source": "Reuters",
-      "date": "2024-10-15"
-    },
-    {
-      "id": 2,
-      "title": "Amazon Expands AWS Services",
-      "content": "Amazon Web Services announced a $5B investment in new data centers across Europe. The expansion is expected to increase AWS revenue by 20% YoY.",
-      "source": "Bloomberg",
-      "date": "2024-10-16"
-    }
-  ]
-}
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Usage Examples](#usage-examples)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## 🎯 Overview
+
+The Stock Market Sentiment Analyzer is an end-to-end system that fetches, processes, and analyzes financial news articles to provide actionable insights for stock market analysis. It combines rule-based ranking, deep learning sentiment prediction (Flan-T5), and advanced keyphrase extraction to deliver comprehensive article analysis.
+
+### Key Capabilities
+
+- **Real-time News Fetching**: Retrieves latest financial news from Finnhub API with intelligent caching
+- **Deep Learning Sentiment Analysis**: Uses fine-tuned Flan-T5 model for accurate sentiment prediction
+- **Intelligent Ranking**: Combines recency, event magnitude, and similarity scoring
+- **Keyphrase Extraction**: Identifies and classifies key financial terms and entities
+- **Interactive Frontend**: Streamlit-based UI for easy exploration and analysis
+- **RESTful API**: FastAPI backend for seamless integration
+
+---
+
+## ✨ Features
+
+### 🔍 Data Processing
+- **Financial Text Cleaning**: Custom preprocessing pipeline preserving financial terminology
+- **Deduplication**: Smart duplicate detection and removal
+- **Caching System**: Sub-millisecond cache hits with connection pooling
+- **Rate Limiting**: Intelligent pagination to respect API limits
+
+### 🤖 AI/ML Models
+- **Flan-T5 Sentiment Predictor**: Fine-tuned transformer model for financial sentiment
+- **Similarity Expansion**: Cosine similarity-based article grouping
+- **Keyphrase Analyzer**: NLP-based extraction with sentiment classification
+- **Rule-Based Ranker**: Multi-factor scoring (recency + event magnitude)
+
+### 🎨 User Interface
+- **Streamlit Frontend**: Interactive web interface for article exploration
+- **Real-time Analysis**: Live updates and processing
+- **Company Search**: Support for major tech companies (Apple, Google, Microsoft, Tesla, etc.)
+- **Detailed Insights**: Sentiment scores, keyphrases, and ranking explanations
+
+### 🔌 API Integration
+- **FastAPI Backend**: High-performance REST API
+- **Finnhub Integration**: Real-time financial news data
+- **DeepSeek API**: Optional synthetic data generation
+- **CORS Support**: Cross-origin requests enabled
+
+---
+
+## 🏗️ Architecture
+
+### Architecture Diagram
+
+![System Architecture](data/architecture.png)
+
+### Tech Stack
+
+**Backend**
+- FastAPI (REST API)
+- PyTorch (Deep Learning)
+- Transformers (Hugging Face)
+- Sentence-Transformers (Embeddings)
+- NLTK & spaCy (NLP)
+
+**Frontend**
+- Streamlit (Web UI)
+- Pandas (Data Handling)
+
+**APIs & Services**
+- Finnhub API (Financial News)
+- DeepSeek API (Synthetic Data)
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.7+
+- Git LFS (for model weights)
+- API Keys:
+  - Finnhub API key
+  - DeepSeek API key (optional, for synthetic data generation)
+
+### Installation
+
+1. **Clone the repository**
+   ```powershell
+   git clone https://github.com/Adigo10/stock_market_sentiment_analyzer.git
+   cd stock_market_sentiment_analyzer
+   ```
+
+2. **Install dependencies**
+   ```powershell
+   pip install -r requirements.txt
+   ```
+
+3. **Download NLTK resources**
+   ```powershell
+   python setup_nltk.py
+   ```
+
+4. **Set up the Flan-T5 model**
+   ```powershell
+   cd model
+   git lfs install
+   git clone https://huggingface.co/tssrihari/Flan_T5_Base
+   cd ..
+   ```
+
+5. **Configure environment variables**
+   
+   Create a `.env` file in the project root:
+   ```
+   FINNHUB_API_KEY=your_finnhub_api_key_here
+   deepseeker_api_key=your_deepseek_api_key_here  # Optional
+   ```
+
+### Running the Application
+
+1. **Start the backend server**
+   ```powershell
+   python server.py
+   ```
+   Server runs on `http://localhost:8000`
+
+2. **Start the frontend (in a new terminal)**
+   ```powershell
+   streamlit run frontend.py
+   ```
+   UI opens automatically at `http://localhost:8501`
+
+3. **Quick launch**
+
+   1. **Quick launch (Windows - Streamlit)**
+   ```powershell
+   .\start.bat
+   ```
+
+   2. **Quick launch (MacOS/Linux - Streamlit)**
+   ```bash
+   ./start.sh
+   ```
+
+   3. **Quick launch (Windows - React)**
+   ```powershell
+   .\start_react.bat
+   ```
+
+   4. **Quick launch (MacOS/Linux - React)**
+   ```bash
+   ./start_react.sh
+   ```
+
+
+---
+
+## 📚 Documentation
+
+Comprehensive guides and documentation are available in the [`doc/`](doc/) folder:
+
+### Setup & Configuration
+- **[Setup Guide](doc/setup.md)** - Complete installation and configuration instructions
+- **[Quick Start Integration](doc/QUICK_START_INTEGRATION.md)** - Fast integration guide for the ML pipeline
+
+### Core Components
+- **[Data Fetching & Caching](doc/DATA_FETCHING.md)** - Finnhub API integration, caching system, and performance optimization
+- **[Model Integration](doc/MODEL_INTEGRATION.md)** - Flan-T5 sentiment predictor and pipeline integration
+- **[Rule-Based Ranking](doc/README_RULE_BASED_RANKING.md)** - Article ranking algorithm (recency + event magnitude)
+- **[Similarity Scoring](doc/README_SIMILARITY_SCORING.md)** - Cosine similarity expansion and filtering
+- **[Keyphrase Analyzer](doc/KEYPHRASE_ANALYZER.md)** - NLP-based keyphrase extraction and classification
+
+### Data Generation & Frontend
+- **[Sentiment Data Generator](doc/README_SENTIMENT_GENERATOR.md)** - Generate synthetic training data with DeepSeek API
+- **[Frontend Usage](doc/FRONTEND_README.md)** - Streamlit interface guide
+
+---
+
+## 💡 Usage Examples
+
+### 1. Analyze News for a Company
+
+```python
+from model_pipeline import FinancialNewsAnalyzer
+
+analyzer = FinancialNewsAnalyzer()
+results = analyzer.analyze_company("Apple")
+
+for article in results:
+    print(f"Headline: {article['headline']}")
+    print(f"Sentiment: {article['predicted_sentiment']}")
+    print(f"Keyphrases: {article['keyphrase_analysis']}")
+    print("---")
 ```
 
-### Usage Example
-```
-from data_process import FinancialDataCleaner 
+### 2. Process Financial Text
+
+```python
+from src.data_process import FinancialDataCleaner
 import json
 
-# Sample data for testing
 sample_data = {
     "news": [
         {
             "id": 1,
             "title": "Tesla Reports Strong Q3 Results",
-            "content": "Tesla reported Q3 earnings of $2.3B, beating analyst estimates by 15%. EPS came in at $0.95 versus expected $0.87. CEO Elon Musk praised the team's execution in the year 2025.",
+            "content": "Tesla reported Q3 earnings of $2.3B, beating analyst estimates by 15%.",
             "source": "Reuters",
             "date": "2024-10-15"
-        },
-        {
-            "id": 2,
-            "title": "Apple Unveils New iPhone Model",
-            "content": "Apple Inc. announced the launch of its latest iPhone model, featuring a new A16 chip and improved battery life. The new model starts at $999 and is expected to boost sales in Q4.",
-            "source": "Bloomberg",
-            "date": "2024-10-14"
         }
-    ,
-        {
-            "id": 3,
-            "title": "Amazon's Stock Hits Record High",
-            "content": "Amazon's stock price surged to a record high of $3,500 per share, driven by strong holiday sales and positive earnings reports. Analysts predict continued growth in the e-commerce giant's market share.",
-            "source": "CNBC",
-            "date": "2024-10-13"
-        }
-        ]}
-# Save sample
-with open('sample_news.json', 'w') as f:
-    json.dump(sample_data, f, indent=2)
+    ]
+}
 
-# Process with currency/percentage removal
 cleaner = FinancialDataCleaner()
-
-result = cleaner.process_json_file(
-    input_file='sample_news.json',
-    output_file='cleaned_news.json')
+cleaned = cleaner.process_json_file('input.json', 'output.json')
 ```
 
-
-## News Sentiment Data Generator
-
-The project includes a real-time news sentiment generator (`src/generate_synthetic_data.py`) that fetches AI company news and generates sentiment-classified data using the DeepSeek v3 API with web search capabilities.
-
-📖 **[View Complete Usage Guide →](src/README_SENTIMENT_GENERATOR.md)**
-
-### Setup
-
-1. Ensure your `.env` file contains the DeepSeek API key:
-   ```
-   deepseeker_api_key=your_api_key_here
-   ```
-
-2. Install dependencies:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-
-### Usage
-
-Generate sentiment-classified news data in CSV format:
+### 3. Generate Synthetic Sentiment Data
 
 ```powershell
-# Fetch 10 recent news items (default) - creates new file or appends to existing
-python .\src\generate_synthetic_data.py
-
-# Fetch custom number of news items
-python .\src\generate_synthetic_data.py --n 20 --out .\data\my_sentiment_data.csv
+# Fetch 20 recent news items with sentiment analysis
+python .\src\generate_synthetic_data.py --n 20
 
 # Focus on specific companies
 python .\src\generate_synthetic_data.py --n 15 --companies NVIDIA Microsoft OpenAI
 ```
 
-**Note:** The script automatically **appends** new data to existing CSV files. The header is only written when creating a new file. This allows you to continuously accumulate news data over multiple runs.
-
-### Output Format
-
-The script generates a CSV file with three columns:
-
-1. **source_name**: The publication name (e.g., Reuters, Bloomberg, TechCrunch)
-2. **source**: A comprehensive 3-5 sentence summary of the full article content
-3. **sentiment**: Formatted as `<senti>Good/Bad/Neutral<reason>analysis`
-
-Example CSV output:
+Output CSV format:
 ```csv
 source_name,source,sentiment
-Reuters,"NVIDIA announced record quarterly earnings with data center revenue surging 409% year-over-year to $18.4 billion, driven by massive demand for its AI chips. The company provided strong forward guidance that exceeded analyst expectations.",<senti>Good<reason>Exceptional earnings beat demonstrates NVIDIA's dominant position in the AI chip market
-The Information,"OpenAI is in early talks to raise new funding at a valuation of $100 billion or more. The potential funding round comes as the company continues to develop more advanced AI models.",<senti>Good<reason>Massive valuation increase signals strong investor confidence in OpenAI's growth potential
-Bloomberg,"Tesla delays rollout of Full Self-Driving version 12 due to regulatory hurdles and technical challenges. The company is working with regulators to address safety concerns.",<senti>Bad<reason>Delays in key AI product launch may disappoint investors and impact revenue timeline
+Reuters,"NVIDIA announced record quarterly earnings...",<senti>Good<reason>Strong earnings beat
+Bloomberg,"Tesla delays FSD rollout...",<senti>Bad<reason>Product launch delays
 ```
 
-### Features
+### 4. Run Sentiment Prediction
 
-- **Real-time News**: Fetches latest news articles via DeepSeek API with web search
-- **Article Summarization**: Reads full articles and generates comprehensive 3-5 sentence summaries
-- **Source Attribution**: Captures publication names (Reuters, Bloomberg, etc.)
-- **Automated Sentiment Classification**: AI-powered sentiment analysis (Good/Bad/Neutral)
-- **Structured Output**: Clean CSV format with three columns for easy analysis
-- **Append Mode**: Continuously accumulates data across multiple runs
-- **Customizable**: Configurable company list and sample size
-- **Metadata Tracking**: Tracks source publications and generation details
+```python
+from src.sentiment_predictor import SentimentPredictor
 
-### API Details
+predictor = SentimentPredictor()
+prediction = predictor.predict_single("Apple launches new iPhone with AI features")
+print(prediction)
+# Output: "<senti>Good<reason>New product launch signals innovation and potential revenue growth"
+```
 
-The script uses the DeepSeek v3 model (`deepseek-v3-1-250821`) with:
-- Web search capability for real-time news retrieval
-- Temperature: 0.7 for balanced creativity
-- Max tokens: 2000 for comprehensive responses
-- Endpoint: `https://ark.ap-southeast.bytepluses.com/api/v3/chat/completions`
+---
+
+## 🔌 API Reference
+
+### GET `/companies`
+Returns list of supported company symbols.
+
+**Response:**
+```json
+{
+  "companies": ["AAPL", "GOOGL", "MSFT", "TSLA", ...]
+}
+```
+
+### POST `/analyze`
+Analyze financial news for a specific company.
+
+**Request:**
+```json
+{
+  "company_name": "Apple"
+}
+```
+
+**Response:**
+```json
+{
+  "company_name": "Apple",
+  "status": "success",
+  "result": [
+    {
+      "id": 123,
+      "headline": "Apple unveils new AI features",
+      "summary": "Detailed summary...",
+      "predicted_sentiment": "<senti>Good<reason>Innovation drive",
+      "keyphrase_analysis": {
+        "positive": ["AI features", "innovation"],
+        "neutral": ["product launch"],
+        "negative": []
+      },
+      "rank_score": 0.89,
+      "recency_score": 0.95,
+      "magnitude_score": 0.85
+    }
+  ]
+}
+```
+
+For complete API documentation, see [DATA_FETCHING.md](doc/DATA_FETCHING.md).
+
+---
+
+## 🛠️ Project Structure
+
+```
+stock_market_sentiment_analyzer/
+├── frontend.py              # Streamlit UI
+├── server.py                # FastAPI backend
+├── model_pipeline.py        # End-to-end orchestration
+├── setup_nltk.py            # NLTK resource downloader
+├── requirements.txt         # Python dependencies
+├── start.bat                # Windows launch script
+│
+├── src/                     # Core modules
+│   ├── fetch_data.py        # News fetching from Finnhub
+│   ├── data_process.py      # Text preprocessing
+│   ├── cache_manager.py     # Caching system
+│   ├── rule_based_ranker.py # Article ranking
+│   ├── sentiment_predictor.py # Flan-T5 sentiment model
+│   ├── keyphrase_analyzer.py  # Keyphrase extraction
+│   └── generate_synthetic_data.py # Data generation
+│
+├── pipeline/                # Batch processing
+│   └── pipeline.py          # Similarity expansion
+│
+├── model/                   # ML models
+│   └── Flan_T5_Base/        # Fine-tuned sentiment model
+│
+├── data/                    # Sample datasets
+│   ├── ai_news_detailed.csv
+│   └── ai_stock_sentiment_5k.csv
+│
+└── doc/                     # Documentation
+    ├── setup.md
+    ├── DATA_FETCHING.md
+    ├── MODEL_INTEGRATION.md
+    └── ... (other guides)
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Flan-T5 Model**: [HuggingFace](https://huggingface.co/tssrihari/Flan_T5_Base)
+- **Finnhub API**: Real-time financial news data
+- **Hugging Face**: Transformers and model hosting
+- **Streamlit**: Interactive web framework
+- **Contributors**: [View all contributors](https://github.com/Adigo10/stock_market_sentiment_analyzer/graphs/contributors)
+
+---
+
+## 📞 Support
+
+For questions, issues, or feature requests:
+- Open an issue on GitHub
+- Check the [documentation](doc/) folder
+- Review existing issues and discussions
+
+---
+
+**Built with ❤️ at NTU, Singapore**
