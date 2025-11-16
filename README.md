@@ -81,11 +81,13 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
 
 **Frontend**
 - Streamlit (Web UI)
+- Typescript (Responsive Web UI)
 - Pandas (Data Handling)
 
 **APIs & Services**
 - Finnhub API (Financial News)
 - DeepSeek API (Synthetic Data)
+- Groq API (Similariy summary)
 
 ---
 
@@ -98,7 +100,7 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
 - API Keys:
   - Finnhub API key
   - DeepSeek API key (optional, for synthetic data generation)
-  - Hugging Face access token (only required if the `tssrihari/Flan_T5_Base` repository is private)
+  - Groq API key
 
 ### Installation
 
@@ -131,10 +133,10 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
    Create a `.env` file in the project root:
    ```
    FINNHUB_API_KEY=your_finnhub_api_key_here
-   deepseeker_api_key=your_deepseek_api_key_here  # Optional
-   HUGGINGFACE_TOKEN=your_hf_token_here          # Optional, for private HF repos
+   GROQ_API_KEY=your_groq_api_key_here
+
    ```
-   If the Hugging Face model is public the token can be omitted. On first run the backend automatically downloads the fine-tuned Flan-T5 weights into `model/Flan_T5_Base` when they are missing.
+
 
 ### Running the Application
 
@@ -171,7 +173,6 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
    ```bash
    ./start_react.sh
    ```
-
 
 ## 📚 Documentation
 
