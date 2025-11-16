@@ -167,8 +167,63 @@ if companies:
                                 st.json(data)
 
                     else:
-                        st.error(f"❌ API Error: {response.status_code}")
-                        st.code(response.text)
+                        st.warning("No keyphrases extracted from analyzed articles.")
+
+                progress_bar.progress(100)
+                status_placeholder.success("All steps completed successfully! 🎉")
+
+                # Final article cards - displayed at the bottom with 2-column grid
+                # Prepare payload for download regardless of whether there are articles
+                download_payload = json.dumps(
+                    result_data,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+
+                if result_data:
+                    st.markdown("---")  # Separator
+                    st.markdown("### 📰 AI-Enriched Articles")
+                    st.markdown(
+                        f"<div style='color:#6b7280;font-size:1rem;margin-bottom:1.5rem;'>Showing <strong>{min(len(result_data), 15)}</strong> of <strong>{len(result_data)}</strong> analyzed articles with AI insights</div>",
+                        unsafe_allow_html=True
+                    )
+
+                    articles_to_show = result_data[:15]
+                    card_html_list = [
+                        display_article_card(article, idx)
+                        for idx, article in enumerate(articles_to_show, 1)
+                    ]
+
+                    # Display articles in 2-column grid with better spacing
+                    for start in range(0, len(card_html_list), 2):
+                        cols = st.columns(2, gap="large")
+                        for offset in range(2):
+                            card_idx = start + offset
+                            if card_idx < len(card_html_list):
+                                with cols[offset]:
+                                    st_html(card_html_list[card_idx], height=650, width=None, scrolling=True)
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    safe_company = re.sub(r"[^a-z0-9]+", "_", selected_company.lower()).strip("_")
+                    st.download_button(
+                        "📥 Download All Articles (JSON)",
+                        data=download_payload.encode("utf-8"),
+                        file_name=f"{safe_company or 'analysis'}_ai_articles.json",
+                        mime="application/json",
+                    )
+                else:
+                    st.warning(
+                        "No enriched articles available from the AI analysis."
+                    )
+                    safe_company = re.sub(
+                        r"[^a-z0-9]+", "_", selected_company.lower()
+                    ).strip("_")
+                    st.download_button(
+                        "📥 Download All Articles (JSON)",
+                        data=download_payload.encode("utf-8"),
+                        file_name=f"{safe_company or 'analysis'}_ai_articles.json",
+                        mime="application/json",
+                    )
 
                 except requests.exceptions.Timeout:
                     st.error("⏱️ Request timed out. Please try again.")
