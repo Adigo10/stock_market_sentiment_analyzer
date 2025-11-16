@@ -7,3 +7,5 @@ processed_output.json
 ranked_articles.json
 input.json
 model/
+node_modules/
+*.log
