@@ -81,6 +81,7 @@ The Stock Market Sentiment Analyzer is an end-to-end system that fetches, proces
 
 **Frontend**
 - Streamlit (Web UI)
+- Typescript (Responsive Web UI)
 - Pandas (Data Handling)
 
 **APIs & Services**
